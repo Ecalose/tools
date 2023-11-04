@@ -32,9 +32,9 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/andybalholm/brotli"
-
 	_ "image/png"
+
+	"github.com/andybalholm/brotli"
 
 	_ "embed"
 
