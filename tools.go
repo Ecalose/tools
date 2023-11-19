@@ -19,6 +19,7 @@ import (
 	"io"
 	"math"
 	"math/rand"
+	"slices"
 
 	"net"
 	"net/url"
@@ -637,7 +638,22 @@ func DelSliceIndex[T any](val []T, indexs ...int) []T {
 		return val
 	}
 }
-
+func DelSliceVals[T comparable](val []T, v T) []T {
+	for {
+		index := slices.Index(val, v)
+		if index == -1 {
+			return val
+		}
+		val = DelSliceIndex(val, index)
+	}
+}
+func DelSliceVal[T comparable](val []T, v T) []T {
+	index := slices.Index(val, v)
+	if index == -1 {
+		return val
+	}
+	return DelSliceIndex(val, index)
+}
 func WrapError(err error, val ...any) error {
 	return fmt.Errorf("%w,%s", err, fmt.Sprint(val...))
 }
