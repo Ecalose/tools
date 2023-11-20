@@ -368,41 +368,26 @@ func AesDecode(val string, key []byte) ([]byte, error) {
 	return src, nil
 }
 
-func compressionBrDecode(ctx context.Context, r *bytes.Buffer) (*bytes.Buffer, error) {
-	rs := bytes.NewBuffer(nil)
-	return rs, CopyWitchContext(ctx, rs, io.NopCloser(brotli.NewReader(r)), true)
+func compressionBrDecode(ctx context.Context, r io.Reader) io.ReadCloser {
+	return io.NopCloser(brotli.NewReader(r))
 }
-func compressionDeflateDecode(ctx context.Context, r *bytes.Buffer) (*bytes.Buffer, error) {
-	rs, reader := bytes.NewBuffer(nil), flate.NewReader(r)
-	defer reader.Close()
-	return rs, CopyWitchContext(ctx, rs, reader, true)
+func compressionDeflateDecode(ctx context.Context, r io.Reader) io.ReadCloser {
+	return flate.NewReader(r)
 }
-func compressionGzipDecode(ctx context.Context, r *bytes.Buffer) (*bytes.Buffer, error) {
-	reader, err := gzip.NewReader(r)
-	if err != nil {
-		return r, err
-	}
-	defer reader.Close()
-	rs := bytes.NewBuffer(nil)
-	return rs, CopyWitchContext(ctx, rs, reader, true)
+func compressionGzipDecode(ctx context.Context, r io.Reader) (io.ReadCloser, error) {
+	return gzip.NewReader(r)
 }
-func compressionZlibDecode(ctx context.Context, r *bytes.Buffer) (*bytes.Buffer, error) {
-	reader, err := zlib.NewReader(r)
-	if err != nil {
-		return r, err
-	}
-	defer reader.Close()
-	rs := bytes.NewBuffer(nil)
-	return rs, CopyWitchContext(ctx, rs, reader, true)
+func compressionZlibDecode(ctx context.Context, r io.Reader) (io.ReadCloser, error) {
+	return zlib.NewReader(r)
 }
 
 // compression decode
-func CompressionDecode(ctx context.Context, r *bytes.Buffer, encoding string) (*bytes.Buffer, error) {
+func CompressionDecode(ctx context.Context, r io.ReadCloser, encoding string) (io.ReadCloser, error) {
 	switch encoding {
 	case "br":
-		return compressionBrDecode(ctx, r)
+		return compressionBrDecode(ctx, r), nil
 	case "deflate":
-		return compressionDeflateDecode(ctx, r)
+		return compressionDeflateDecode(ctx, r), nil
 	case "gzip":
 		return compressionGzipDecode(ctx, r)
 	case "zlib":
