@@ -368,32 +368,32 @@ func AesDecode(val string, key []byte) ([]byte, error) {
 	return src, nil
 }
 
-func compressionBrDecode(ctx context.Context, r io.Reader) io.ReadCloser {
+func compressionBrDecode(r io.Reader) io.ReadCloser {
 	return io.NopCloser(brotli.NewReader(r))
 }
-func compressionDeflateDecode(ctx context.Context, r io.Reader) io.ReadCloser {
+func compressionDeflateDecode(r io.Reader) io.ReadCloser {
 	return flate.NewReader(r)
 }
-func compressionGzipDecode(ctx context.Context, r io.Reader) (io.ReadCloser, error) {
+func compressionGzipDecode(r io.Reader) (io.ReadCloser, error) {
 	return gzip.NewReader(r)
 }
-func compressionZlibDecode(ctx context.Context, r io.Reader) (io.ReadCloser, error) {
+func compressionZlibDecode(r io.Reader) (io.ReadCloser, error) {
 	return zlib.NewReader(r)
 }
 
 // compression decode
-func CompressionDecode(ctx context.Context, r io.ReadCloser, encoding string) (io.ReadCloser, error) {
+func CompressionDecode(r io.ReadCloser, encoding string) (io.ReadCloser, error) {
 	switch encoding {
 	case "br":
-		return compressionBrDecode(ctx, r), nil
+		return compressionBrDecode(r), nil
 	case "deflate":
-		return compressionDeflateDecode(ctx, r), nil
+		return compressionDeflateDecode(r), nil
 	case "gzip":
-		return compressionGzipDecode(ctx, r)
+		return compressionGzipDecode(r)
 	case "zlib":
-		return compressionZlibDecode(ctx, r)
+		return compressionZlibDecode(r)
 	default:
-		return r, nil
+		return nil, nil
 	}
 }
 
