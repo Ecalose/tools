@@ -125,14 +125,21 @@ func DecodeRead(txt io.Reader, code string) io.Reader {
 	return txt
 }
 
-// merge two same struct
+// c1 为指针，c2 为结构体，c1 的值如果是默认值,则c2的值赋值给c1
 func Merge(c1 any, c2 any) {
-	v2 := reflect.ValueOf(c2)             //初始化为c2保管的具体值的v2
-	v1_elem := reflect.ValueOf(c1).Elem() //返回 c1 指针保管的值
-	for i := 0; i < v2.NumField(); i++ {
-		field2 := v2.Field(i)                                                                                             //返回结构体的第i个字段
-		if !reflect.DeepEqual(field2.Interface(), reflect.Zero(field2.Type()).Interface()) && v1_elem.Field(i).CanSet() { //如果第二个构造体 这个字段不为空
-			v1_elem.Field(i).Set(field2) //设置值
+	c2Value := reflect.ValueOf(c2)        //初始化为c2保管的具体值的c2Value
+	c1Value := reflect.ValueOf(c1).Elem() //返回 c1 指针保管的值
+	c2Type := reflect.TypeOf(c2)
+	for i := 0; i < c2Type.NumField(); i++ {
+		c2Name := c2Type.Field(i).Name
+		field2 := c2Value.FieldByName(c2Name)
+		field1 := c1Value.FieldByName(c2Name)
+		if field2.IsValid() && field1.IsValid() { //有字段
+			if reflect.DeepEqual(field1.Interface(), reflect.Zero(field1.Type()).Interface()) { //c1 的值为空
+				if field1.CanSet() { //c1 可以被设置
+					field1.Set(field2) //设置值
+				}
+			}
 		}
 	}
 }
