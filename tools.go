@@ -650,37 +650,27 @@ func WrapError(err error, val ...any) error {
 	return fmt.Errorf("%w,%s", err, fmt.Sprint(val...))
 }
 
-func CopyWitchContext(ctx context.Context, writer io.Writer, reader io.ReadCloser, cnlClose bool) (err error) {
-	defer func() {
-		if err != nil && errors.Is(err, io.ErrUnexpectedEOF) {
+func CopyWitchContext(ctx context.Context, writer io.Writer, reader io.ReadCloser) (err error) {
+	if ctx == nil {
+		_, err = io.Copy(writer, reader)
+		if err == io.ErrUnexpectedEOF {
 			err = nil
 		}
-	}()
-	if ctx == nil {
-		defer func() {
-			if recErr := recover(); recErr != nil && err == nil {
-				err, _ = recErr.(error)
-			}
-		}()
-		_, err = io.Copy(writer, reader)
 		return
 	}
 	done := make(chan struct{})
 	go func() {
-		defer func() {
-			if recErr := recover(); recErr != nil && err == nil {
-				err, _ = recErr.(error)
-			}
-			close(done)
-		}()
 		_, err = io.Copy(writer, reader)
+		if err == io.ErrUnexpectedEOF {
+			err = nil
+		}
+		close(done)
 	}()
 	select {
 	case <-ctx.Done():
-		if cnlClose {
-			reader.Close()
+		if err == nil {
+			err = ctx.Err()
 		}
-		err = ctx.Err()
 	case <-done:
 	}
 	return
