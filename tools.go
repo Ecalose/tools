@@ -85,6 +85,9 @@ func UrlJoin(base, href string) (string, error) {
 func Charset(content []byte, content_type string) ([]byte, string, error) {
 	chset, chset_name, _ := charset.DetermineEncoding(content, content_type)
 	chset_content, err := chset.NewDecoder().Bytes(content)
+	if err != nil {
+		return content, chset_name, err
+	}
 	return chset_content, chset_name, err
 }
 
@@ -653,7 +656,7 @@ func WrapError(err error, val ...any) error {
 func CopyWitchContext(ctx context.Context, writer io.Writer, reader io.ReadCloser) (err error) {
 	if ctx == nil {
 		_, err = io.Copy(writer, reader)
-		if err == io.ErrUnexpectedEOF {
+		if errors.Is(err, io.ErrUnexpectedEOF) {
 			err = nil
 		}
 		return
