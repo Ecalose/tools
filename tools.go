@@ -35,12 +35,12 @@ import (
 
 	_ "image/png"
 
-	"github.com/andybalholm/brotli"
-
 	_ "embed"
 
+	"github.com/andybalholm/brotli"
 	"github.com/gospider007/kinds"
 	"github.com/gospider007/re"
+	"github.com/klauspost/compress/zstd"
 	_ "golang.org/x/image/webp"
 	"golang.org/x/net/html/charset"
 	"golang.org/x/text/encoding/simplifiedchinese"
@@ -381,6 +381,14 @@ func AesDecode(val string, key []byte) ([]byte, error) {
 func compressionBrDecode(r io.Reader) io.ReadCloser {
 	return io.NopCloser(brotli.NewReader(r))
 }
+func compressionZstdDecode(r io.Reader) (io.ReadCloser, error) {
+	r, err := zstd.NewReader(r)
+	if err != nil {
+		return nil, err
+	}
+	return io.NopCloser(r), err
+}
+
 func compressionDeflateDecode(r io.Reader) io.ReadCloser {
 	return flate.NewReader(r)
 }
@@ -402,6 +410,8 @@ func CompressionDecode(r io.ReadCloser, encoding string) (io.ReadCloser, error) 
 		return compressionGzipDecode(r)
 	case "zlib":
 		return compressionZlibDecode(r)
+	case "zstd":
+		return compressionZstdDecode(r)
 	default:
 		return nil, nil
 	}
