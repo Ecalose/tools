@@ -719,3 +719,13 @@ func AnyJoin[T any](values []T, sep string) string {
 	}
 	return strings.Join(lls, sep)
 }
+
+func ArraySet[T comparable](arr []T) []T {
+	set := []T{}
+	for _, val := range arr {
+		if !slices.Contains(set, val) {
+			set = append(set, val)
+		}
+	}
+	return set
+}
