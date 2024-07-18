@@ -370,6 +370,12 @@ func AesDecode(val string, key []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	if len(key) != block.BlockSize() {
+		return nil, errors.New("cipher.NewCBCDecrypter: IV length must equal block size")
+	}
+	if len(src)%block.BlockSize() != 0 {
+		return nil, errors.New("crypto/cipher: input not full blocks")
+	}
 	blockMode := cipher.NewCBCDecrypter(block, key)
 	blockMode.CryptBlocks(src, src)
 	n := len(src)
