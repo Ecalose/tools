@@ -379,8 +379,16 @@ func AesDecode(val string, key []byte) ([]byte, error) {
 	blockMode := cipher.NewCBCDecrypter(block, key)
 	blockMode.CryptBlocks(src, src)
 	n := len(src)
-	unPadNum := int(src[n-1])
-	src = src[:n-unPadNum]
+	un := n - 1
+	if un < 0 {
+		return src, errors.New("crypto/cipher: length error")
+	}
+	unPadNum := int(src[un])
+	un2 := n - unPadNum
+	if un2 < 0 {
+		return src, errors.New("crypto/cipher: padding error")
+	}
+	src = src[:un2]
 	return src, nil
 }
 
