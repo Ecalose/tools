@@ -21,6 +21,8 @@ import (
 	"math/rand"
 	"slices"
 
+	"github.com/mholt/archiver/v4"
+
 	"net"
 	"net/url"
 	"os"
@@ -37,7 +39,6 @@ import (
 
 	_ "embed"
 
-	"github.com/andybalholm/brotli"
 	"github.com/gospider007/kinds"
 	"github.com/gospider007/re"
 	"github.com/klauspost/compress/zstd"
@@ -392,8 +393,8 @@ func AesDecode(val string, key []byte) ([]byte, error) {
 	return src, nil
 }
 
-func compressionBrDecode(r io.Reader) io.ReadCloser {
-	return io.NopCloser(brotli.NewReader(r))
+func compressionBrDecode(r io.Reader) (io.ReadCloser, error) {
+	return archiver.Brotli{}.OpenReader(r)
 }
 func compressionZstdDecode(r io.Reader) (io.ReadCloser, error) {
 	r, err := zstd.NewReader(r)
@@ -407,6 +408,7 @@ func compressionDeflateDecode(r io.Reader) io.ReadCloser {
 	return flate.NewReader(r)
 }
 func compressionGzipDecode(r io.Reader) (io.ReadCloser, error) {
+	// return archiver.Gz{}.OpenReader(r)
 	return gzip.NewReader(r)
 }
 func compressionZlibDecode(r io.Reader) (io.ReadCloser, error) {
@@ -417,7 +419,7 @@ func compressionZlibDecode(r io.Reader) (io.ReadCloser, error) {
 func CompressionDecode(r io.ReadCloser, encoding string) (io.ReadCloser, error) {
 	switch encoding {
 	case "br":
-		return compressionBrDecode(r), nil
+		return compressionBrDecode(r)
 	case "deflate":
 		return compressionDeflateDecode(r), nil
 	case "gzip":
