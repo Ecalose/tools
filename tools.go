@@ -334,6 +334,18 @@ func Md5[T string | []byte](val T) [16]byte {
 	return result
 }
 
+// md5 encode
+func Md5Raw[T string | []byte](val T) []byte {
+	h := md5.New()
+	switch con := (any)(val).(type) {
+	case string:
+		h.Write(StringToBytes(con))
+	case []byte:
+		h.Write(con)
+	}
+	return h.Sum(nil)
+}
+
 // base64 encode
 func Base64Encode[T string | []byte](val T) string {
 	switch con := (any)(val).(type) {
