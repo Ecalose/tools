@@ -21,7 +21,7 @@ import (
 	"math/rand"
 	"slices"
 
-	"github.com/mholt/archiver/v4"
+	"github.com/mholt/archives"
 
 	"net"
 	"net/url"
@@ -41,7 +41,6 @@ import (
 
 	"github.com/gospider007/kinds"
 	"github.com/gospider007/re"
-	"github.com/klauspost/compress/zstd"
 	_ "golang.org/x/image/webp"
 	"golang.org/x/net/html/charset"
 	"golang.org/x/text/encoding/simplifiedchinese"
@@ -406,21 +405,16 @@ func AesDecode(val string, key []byte) ([]byte, error) {
 }
 
 func compressionBrDecode(r io.Reader) (io.ReadCloser, error) {
-	return archiver.Brotli{}.OpenReader(r)
+	return archives.Brotli{}.OpenReader(r)
 }
 func compressionZstdDecode(r io.Reader) (io.ReadCloser, error) {
-	r, err := zstd.NewReader(r)
-	if err != nil {
-		return nil, err
-	}
-	return io.NopCloser(r), err
+	return archives.Zstd{}.OpenReader(r)
 }
 
 func compressionDeflateDecode(r io.Reader) io.ReadCloser {
 	return flate.NewReader(r)
 }
 func compressionGzipDecode(r io.Reader) (io.ReadCloser, error) {
-	// return archiver.Gz{}.OpenReader(r)
 	return gzip.NewReader(r)
 }
 func compressionZlibDecode(r io.Reader) (io.ReadCloser, error) {
@@ -710,7 +704,7 @@ func CopyWitchContext(ctx context.Context, writer io.Writer, reader io.ReadClose
 	select {
 	case <-ctx.Done():
 		if err == nil {
-			err = ctx.Err()
+			err = context.Cause(ctx)
 		}
 	case <-done:
 	}
