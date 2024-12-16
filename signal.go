@@ -2,7 +2,6 @@ package tools
 
 import (
 	"context"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -17,15 +16,12 @@ func Signal(preCtx context.Context, fun func()) {
 		syscall.SIGHUP, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGILL, syscall.SIGTRAP,
 		syscall.SIGABRT, syscall.SIGBUS, syscall.SIGFPE, syscall.SIGSEGV, syscall.SIGPIPE,
 		syscall.SIGALRM, syscall.SIGTERM)
-	// signal.Notify(ch)
 	select {
 	case <-preCtx.Done():
 		fun()
 		signal.Stop(ch)
 	case s := <-ch:
-		log.Print("捕获")
 		fun()
-
 		signal.Stop(ch)
 		signal.Reset(s)
 		if p, err := os.FindProcess(os.Getpid()); err == nil && p != nil {
