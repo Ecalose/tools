@@ -2,9 +2,6 @@ package tools
 
 import (
 	"bytes"
-	"compress/flate"
-	"compress/gzip"
-	"compress/zlib"
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
@@ -410,39 +407,52 @@ func AesDecode(val string, key []byte) ([]byte, error) {
 	return src, nil
 }
 
-func compressionBrDecode(r io.Reader) (io.ReadCloser, error) {
-	return archives.Brotli{}.OpenReader(r)
-}
-func compressionZstdDecode(r io.Reader) (io.ReadCloser, error) {
-	return archives.Zstd{}.OpenReader(r)
+type NoCloseReader struct {
+	raw io.Closer
+	r   io.Reader
 }
 
-func compressionDeflateDecode(r io.Reader) io.ReadCloser {
-	return flate.NewReader(r)
+func (r *NoCloseReader) Read(p []byte) (n int, err error) {
+	return r.r.Read(p)
 }
-func compressionGzipDecode(r io.Reader) (io.ReadCloser, error) {
-	return gzip.NewReader(r)
-}
-func compressionZlibDecode(r io.Reader) (io.ReadCloser, error) {
-	return zlib.NewReader(r)
+func (r *NoCloseReader) Close() error {
+	return r.raw.Close()
 }
 
 // compression decode
-func CompressionDecode(r io.ReadCloser, encoding string) (io.ReadCloser, error) {
-	switch encoding {
-	case "br":
-		return compressionBrDecode(r)
-	case "deflate":
-		return compressionDeflateDecode(r), nil
-	case "gzip":
-		return compressionGzipDecode(r)
-	case "zlib":
-		return compressionZlibDecode(r)
-	case "zstd":
-		return compressionZstdDecode(r)
-	default:
-		return nil, nil
+func CompressionDecode(ctx context.Context, r io.ReadCloser, encoding string) (io.ReadCloser, error) {
+	fileType := ""
+	switch strings.ToLower(encoding) {
+	case "deflate", "flate", "zip":
+		fileType = "zip"
+	case "xz":
+		fileType = "xz"
+	case "lz4":
+		fileType = "lz4"
+	case "lzip", "lz":
+		fileType = "lz"
+	case "brotli", "br":
+		fileType = "br"
+	case "zlib", "zz":
+		fileType = "zz"
+	case "zstandard", "zstd", "zst":
+		fileType = "zst"
+	case "snappy2", "s2":
+		fileType = "s2"
+	case "snappy", "sz":
+		fileType = "sz"
+	case "gzip", "gz":
+		fileType = "gz"
+	case "bzip2", "bz2":
+		fileType = "bz2"
 	}
+	format, stream, err := archives.Identify(ctx, fmt.Sprintf("0.%s", fileType), r)
+	if err == nil {
+		if decomp, ok := format.(archives.Decompressor); ok {
+			return decomp.OpenReader(stream)
+		}
+	}
+	return &NoCloseReader{raw: r, r: stream}, nil
 }
 
 // bytes to string
