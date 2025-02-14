@@ -419,7 +419,15 @@ func (r *NoCloseReader) Close() error {
 	return r.raw.Close()
 }
 
-// compression decode
+func CompressionHeadersDecode(ctx context.Context, r io.ReadCloser, encoding string) (io.ReadCloser, error) {
+	switch strings.ToLower(encoding) {
+	case "deflate", "br", "zstd", "gzip":
+		return CompressionDecode(ctx, r, encoding)
+	default:
+		return r, nil
+	}
+}
+
 func CompressionDecode(ctx context.Context, r io.ReadCloser, encoding string) (io.ReadCloser, error) {
 	fileType := ""
 	switch strings.ToLower(encoding) {
