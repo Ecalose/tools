@@ -1,13 +1,13 @@
 module github.com/gospider007/tools
 
-go 1.23.0
+go 1.24.0
 
 require (
 	github.com/gospider007/kinds v0.0.0-20240929092451-8f867acde255
 	github.com/gospider007/re v0.0.0-20241216142712-efbef8d55ea2
 	github.com/mholt/archives v0.1.0
 	golang.org/x/image v0.24.0
-	golang.org/x/net v0.34.0
+	golang.org/x/net v0.35.0
 	golang.org/x/text v0.22.0
 )
 
