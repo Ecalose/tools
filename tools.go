@@ -706,6 +706,9 @@ func DelSliceVal[T comparable](val []T, v T) []T {
 	return DelSliceIndex(val, index)
 }
 func WrapError(err error, val ...any) error {
+	if err == nil {
+		return fmt.Errorf("%s", fmt.Sprint(val...))
+	}
 	return fmt.Errorf("%w,%s", err, fmt.Sprint(val...))
 }
 
