@@ -21,6 +21,7 @@ import (
 	"github.com/mholt/archives"
 
 	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -777,4 +778,83 @@ func ArraySet[T comparable](arr []T) []T {
 		}
 	}
 	return set
+}
+
+func NewHeadersWithH1(orderHeaders []interface {
+	Key() string
+	Val() any
+}, rawHeaders http.Header) [][2]string {
+	writeHeaders := [][2]string{}
+	filterKey := make(map[string]struct{})
+	for _, orderHeader := range orderHeaders {
+		key := orderHeader.Key()
+		val := orderHeader.Val()
+		if val != nil {
+			writeHeaders = append(writeHeaders, [2]string{key, fmt.Sprintf("%v", val)})
+			filterKey[key] = struct{}{}
+		} else if rawV, ok := rawHeaders[key]; ok && len(rawV) > 0 {
+			filterKey[key] = struct{}{}
+			writeHeaders = append(writeHeaders, [2]string{key, rawV[0]})
+		}
+	}
+	for k, vs := range rawHeaders {
+		if _, ok := filterKey[k]; !ok {
+			for _, v := range vs {
+				writeHeaders = append(writeHeaders, [2]string{k, v})
+			}
+		}
+	}
+	sort.Slice(writeHeaders, func(x, y int) bool {
+		return strings.HasPrefix(writeHeaders[x][0], ":") && !strings.HasPrefix(writeHeaders[y][0], ":")
+	})
+	return writeHeaders
+}
+func NewHeadersWithH2(orderHeaders []interface {
+	Key() string
+	Val() any
+}, gospiderHeaders [][2]string) [][2]string {
+	writeHeaders := [][2]string{}
+	filterKey := make(map[string]struct{})
+	for _, orderHeader := range orderHeaders {
+		key := strings.ToLower(orderHeader.Key())
+		val := orderHeader.Val()
+		if val != nil {
+			writeHeaders = append(writeHeaders, [2]string{key, fmt.Sprintf("%v", val)})
+			filterKey[key] = struct{}{}
+		} else {
+			for _, vvs := range gospiderHeaders {
+				if vvs[0] == key {
+					filterKey[key] = struct{}{}
+					writeHeaders = append(writeHeaders, [2]string{key, vvs[1]})
+					break
+				}
+			}
+		}
+	}
+	for _, vvs := range gospiderHeaders {
+		if _, ok := filterKey[vvs[0]]; !ok {
+			writeHeaders = append(writeHeaders, vvs)
+		}
+	}
+	sort.Slice(writeHeaders, func(x, y int) bool {
+		return strings.HasPrefix(writeHeaders[x][0], ":") && !strings.HasPrefix(writeHeaders[y][0], ":")
+	})
+	return writeHeaders
+}
+func GetContentLength(req *http.Request) (int64, bool) {
+	var chunked bool
+	var contentLength int64 = -1
+	if req.Body != nil {
+		if req.ContentLength >= 0 {
+			contentLength = req.ContentLength
+		} else {
+			chunked = true
+		}
+	} else {
+		switch req.Method {
+		case "POST", "PUT", "PATCH":
+			contentLength = 0
+		}
+	}
+	return contentLength, chunked
 }
