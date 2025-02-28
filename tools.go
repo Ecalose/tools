@@ -14,6 +14,7 @@ import (
 	"hash"
 	"image"
 	"io"
+	"log"
 	"math"
 	"math/rand"
 	"slices"
@@ -780,6 +781,16 @@ func ArraySet[T comparable](arr []T) []T {
 	return set
 }
 
+var DefaultHeaderKeys = []string{
+	"Accept",
+	"Accept-Encoding",
+	"Accept-Language",
+	"Sec-Ch-Ua",
+	"Sec-Ch-Ua-Mobile",
+	"Sec-Ch-Ua-Platform",
+	"User-Agent",
+}
+
 func NewHeadersWithH1(orderHeaders []interface {
 	Key() string
 	Val() any
@@ -857,5 +868,6 @@ func GetContentLength(req *http.Request) (int64, bool) {
 			contentLength = 0
 		}
 	}
+	log.Print("contentLength:", contentLength, "chunked:", chunked)
 	return contentLength, chunked
 }
