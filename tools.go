@@ -14,7 +14,6 @@ import (
 	"hash"
 	"image"
 	"io"
-	"log"
 	"math"
 	"math/rand"
 	"slices"
@@ -868,6 +867,5 @@ func GetContentLength(req *http.Request) (int64, bool) {
 			contentLength = 0
 		}
 	}
-	log.Print("contentLength:", contentLength, "chunked:", chunked)
 	return contentLength, chunked
 }
