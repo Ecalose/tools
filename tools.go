@@ -799,12 +799,14 @@ func NewHeadersWithH1(orderHeaders []interface {
 	for _, orderHeader := range orderHeaders {
 		key := orderHeader.Key()
 		val := orderHeader.Val()
-		if val != nil {
+		if rawV, ok := rawHeaders[key]; ok && len(rawV) > 0 {
+			filterKey[key] = struct{}{}
+			for _, v := range rawV {
+				writeHeaders = append(writeHeaders, [2]string{key, v})
+			}
+		} else if val != nil {
+			filterKey[key] = struct{}{}
 			writeHeaders = append(writeHeaders, [2]string{key, fmt.Sprintf("%v", val)})
-			filterKey[key] = struct{}{}
-		} else if rawV, ok := rawHeaders[key]; ok && len(rawV) > 0 {
-			filterKey[key] = struct{}{}
-			writeHeaders = append(writeHeaders, [2]string{key, rawV[0]})
 		}
 	}
 	for k, vs := range rawHeaders {
@@ -828,17 +830,15 @@ func NewHeadersWithH2(orderHeaders []interface {
 	for _, orderHeader := range orderHeaders {
 		key := strings.ToLower(orderHeader.Key())
 		val := orderHeader.Val()
-		if val != nil {
-			writeHeaders = append(writeHeaders, [2]string{key, fmt.Sprintf("%v", val)})
-			filterKey[key] = struct{}{}
-		} else {
-			for _, vvs := range gospiderHeaders {
-				if vvs[0] == key {
-					filterKey[key] = struct{}{}
-					writeHeaders = append(writeHeaders, [2]string{key, vvs[1]})
-					break
-				}
+		for _, vvs := range gospiderHeaders {
+			if vvs[0] == key {
+				filterKey[key] = struct{}{}
+				writeHeaders = append(writeHeaders, [2]string{key, vvs[1]})
 			}
+		}
+		if _, ok := filterKey[key]; !ok && val != nil {
+			filterKey[key] = struct{}{}
+			writeHeaders = append(writeHeaders, [2]string{key, fmt.Sprintf("%v", val)})
 		}
 	}
 	for _, vvs := range gospiderHeaders {
