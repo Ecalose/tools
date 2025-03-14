@@ -15,7 +15,7 @@ import (
 	"image"
 	"io"
 	"math"
-	"math/rand"
+	"math/rand/v2"
 	"slices"
 
 	"github.com/mholt/archives"
@@ -477,8 +477,6 @@ func StringToBytes(s string) []byte {
 	return unsafe.Slice(unsafe.StringData(s), len(s))
 }
 
-var Rand = rand.New(rand.NewSource(time.Now().UnixMilli()))
-
 var bidChars = "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
 
 var defaultAlphabet = []rune(bidChars)
@@ -635,22 +633,22 @@ func RanInt64(val, val2 int64) int64 {
 	if val == val2 {
 		return val
 	} else if val2 > val {
-		return val + Rand.Int63n(val2-val)
+		return val + rand.Int64N(val2-val)
 	} else {
-		return val2 + Rand.Int63n(val-val2)
+		return val2 + rand.Int64N(val-val2)
 	}
 }
 func RanInt(val, val2 int) int {
 	if val == val2 {
 		return val
 	} else if val2 > val {
-		return val + Rand.Intn(val2-val)
+		return val + rand.IntN(val2-val)
 	} else {
-		return val2 + Rand.Intn(val-val2)
+		return val2 + rand.IntN(val-val2)
 	}
 }
 func RanFloat64(val, val2 int64) float64 {
-	return float64(RanInt64(val, val2)) + Rand.Float64()
+	return float64(RanInt64(val, val2)) + rand.Float64()
 }
 
 // :param point0: start
