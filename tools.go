@@ -814,7 +814,7 @@ func NewHeadersWithH1(orderHeaders []interface {
 			}
 		}
 	}
-	sort.Slice(writeHeaders, func(x, y int) bool {
+	sort.SliceStable(writeHeaders, func(x, y int) bool {
 		return strings.HasPrefix(writeHeaders[x][0], ":") && !strings.HasPrefix(writeHeaders[y][0], ":")
 	})
 	return writeHeaders
@@ -844,7 +844,7 @@ func NewHeadersWithH2(orderHeaders []interface {
 			writeHeaders = append(writeHeaders, vvs)
 		}
 	}
-	sort.Slice(writeHeaders, func(x, y int) bool {
+	sort.SliceStable(writeHeaders, func(x, y int) bool {
 		return strings.HasPrefix(writeHeaders[x][0], ":") && !strings.HasPrefix(writeHeaders[y][0], ":")
 	})
 	return writeHeaders

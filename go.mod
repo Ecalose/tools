@@ -27,8 +27,7 @@ require (
 	github.com/nwaples/rardecode/v2 v2.1.1 // indirect
 	github.com/pierrec/lz4/v4 v4.1.22 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/sorairolake/lzip-go v0.3.5 // indirect
-	github.com/stretchr/testify v1.10.0 // indirect
+	github.com/sorairolake/lzip-go v0.3.7 // indirect
 	github.com/therootcompany/xz v1.0.1 // indirect
 	github.com/ulikunitz/xz v0.5.12 // indirect
 	go4.org v0.0.0-20230225012048-214862532bf5 // indirect
