@@ -7,7 +7,7 @@ require (
 	github.com/gospider007/re v0.0.0-20250217075352-bcb79f285d6c
 	github.com/mholt/archives v0.1.0
 	golang.org/x/image v0.25.0
-	golang.org/x/net v0.37.0
+	golang.org/x/net v0.38.0
 	golang.org/x/text v0.23.0
 )
 
