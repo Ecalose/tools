@@ -783,7 +783,7 @@ func ArraySet[T comparable](arr []T) []T {
 
 var DefaultHeaderKeys = []string{
 	"Accept",
-	"Accept-Encoding",
+	// "Accept-Encoding",
 	"Accept-Language",
 	"Sec-Ch-Ua",
 	"Sec-Ch-Ua-Mobile",
