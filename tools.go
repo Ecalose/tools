@@ -455,13 +455,8 @@ func CompressionDecode(ctx context.Context, r io.ReadCloser, encoding string) (i
 	case "bzip2", "bz2":
 		fileType = "bz2"
 	}
-	format, stream, err := archives.Identify(ctx, fmt.Sprintf("0.%s", fileType), r)
-	if err == nil {
-		if decomp, ok := format.(archives.Decompressor); ok {
-			return decomp.OpenReader(stream)
-		}
-	}
-	return &NoCloseReader{raw: r, r: stream}, nil
+	_, stream, err := archives.Identify(ctx, fmt.Sprintf("0.%s", fileType), r)
+	return &NoCloseReader{raw: r, r: stream}, err
 }
 
 // bytes to string
