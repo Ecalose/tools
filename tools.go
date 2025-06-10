@@ -2,6 +2,10 @@ package tools
 
 import (
 	"bytes"
+	"compress/bzip2"
+	"compress/flate"
+	"compress/gzip"
+	"compress/zlib"
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
@@ -432,7 +436,9 @@ func CompressionHeadersDecode(ctx context.Context, r io.ReadCloser, encoding str
 func CompressionDecode(ctx context.Context, r io.ReadCloser, encoding string) (io.ReadCloser, error) {
 	fileType := ""
 	switch strings.ToLower(encoding) {
-	case "deflate", "flate", "zip":
+	case "deflate", "flate":
+		return flate.NewReader(r), nil
+	case "zip":
 		fileType = "zip"
 	case "xz":
 		fileType = "xz"
@@ -443,17 +449,19 @@ func CompressionDecode(ctx context.Context, r io.ReadCloser, encoding string) (i
 	case "brotli", "br":
 		fileType = "br"
 	case "zlib", "zz":
-		fileType = "zz"
+		return zlib.NewReader(r)
 	case "zstandard", "zstd", "zst":
 		fileType = "zst"
 	case "snappy2", "s2":
 		fileType = "s2"
 	case "snappy", "sz":
 		fileType = "sz"
-	case "gzip", "gz":
+	case "gzip":
+		return gzip.NewReader(r)
+	case "gz":
 		fileType = "gz"
 	case "bzip2", "bz2":
-		fileType = "bz2"
+		return io.NopCloser(bzip2.NewReader(r)), nil
 	}
 	_, stream, err := archives.Identify(ctx, fmt.Sprintf("0.%s", fileType), r)
 	return &NoCloseReader{raw: r, r: stream}, err
