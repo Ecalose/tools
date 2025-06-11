@@ -441,25 +441,25 @@ func CompressionDecode(ctx context.Context, r io.ReadCloser, encoding string) (i
 	case "zip":
 		fileType = "zip"
 	case "xz":
-		fileType = "xz"
+		return archives.Xz{}.OpenReader(r)
 	case "lz4":
-		fileType = "lz4"
+		return archives.Lz4{}.OpenReader(r)
 	case "lzip", "lz":
 		fileType = "lz"
 	case "brotli", "br":
-		fileType = "br"
+		return archives.Brotli{}.OpenReader(r)
 	case "zlib", "zz":
 		return zlib.NewReader(r)
 	case "zstandard", "zstd", "zst":
-		fileType = "zst"
+		return archives.Zstd{}.OpenReader(r)
 	case "snappy2", "s2":
-		fileType = "s2"
+		return archives.Sz{}.OpenReader(r)
 	case "snappy", "sz":
-		fileType = "sz"
+		return archives.Sz{}.OpenReader(r)
 	case "gzip":
 		return gzip.NewReader(r)
 	case "gz":
-		fileType = "gz"
+		return archives.Gz{}.OpenReader(r)
 	case "bzip2", "bz2":
 		return io.NopCloser(bzip2.NewReader(r)), nil
 	}
@@ -717,20 +717,37 @@ func WrapError(err error, val string) error {
 	return errors.Join(err, errors.New(val))
 }
 
-func CopyWitchContext(ctx context.Context, writer io.Writer, reader io.ReadCloser) (err error) {
-	if ctx == nil {
-		_, err = io.Copy(writer, reader)
-		if errors.Is(err, io.ErrUnexpectedEOF) {
-			err = nil
+var safeCopyPool = sync.Pool{
+	New: func() any {
+		b := make([]byte, 32*1024)
+		return &b
+	},
+}
+
+func Copy(dst io.Writer, src io.Reader) (written int64, err error) {
+	buf := safeCopyPool.Get().(*[]byte)
+	defer safeCopyPool.Put(buf)
+	defer func() {
+		if recvErr := recover(); recvErr != nil {
+			if e, ok := recvErr.(error); ok {
+				err = e
+			} else {
+				err = fmt.Errorf("%v", recvErr)
+			}
 		}
-		return
+	}()
+	written, err = io.CopyBuffer(dst, src, *buf)
+	return
+}
+
+func CopyWitchContext(ctx context.Context, writer io.Writer, reader io.Reader) (err error) {
+	if ctx == nil {
+		_, err = Copy(writer, reader)
+		return err
 	}
 	done := make(chan struct{})
 	go func() {
-		_, err = io.Copy(writer, reader)
-		if err == io.ErrUnexpectedEOF {
-			err = nil
-		}
+		_, err = Copy(writer, reader)
 		close(done)
 	}()
 	select {
