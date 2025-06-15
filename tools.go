@@ -857,7 +857,7 @@ func NewHeadersWithH2(orderHeaders []interface {
 				writeHeaders = append(writeHeaders, [2]string{key, vvs[1]})
 			}
 		}
-		if _, ok := filterKey[key]; !ok && val != nil {
+		if _, ok := filterKey[key]; (!ok && val != nil) || key == "cookie" {
 			filterKey[key] = struct{}{}
 			writeHeaders = append(writeHeaders, [2]string{key, fmt.Sprintf("%v", val)})
 		}
@@ -870,7 +870,17 @@ func NewHeadersWithH2(orderHeaders []interface {
 	sort.SliceStable(writeHeaders, func(x, y int) bool {
 		return strings.HasPrefix(writeHeaders[x][0], ":") && !strings.HasPrefix(writeHeaders[y][0], ":")
 	})
-	return writeHeaders
+	results := [][2]string{}
+	for _, vvs := range writeHeaders {
+		if vvs[0] == "cookie" {
+			for _, cookie := range strings.Split(vvs[1], ";") {
+				results = append(results, [2]string{"cookie", cookie})
+			}
+		} else {
+			results = append(results, vvs)
+		}
+	}
+	return results
 }
 
 func GetContentLength(req *http.Request) (int64, bool) {
