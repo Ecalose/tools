@@ -724,20 +724,48 @@ var safeCopyPool = sync.Pool{
 	},
 }
 
+// func Copy(dst io.Writer, src io.Reader) (written int64, err error) {
+// 	buf := safeCopyPool.Get().(*[]byte)
+// 	defer safeCopyPool.Put(buf)
+// 	defer func() {
+// 		if recvErr := recover(); recvErr != nil {
+// 			if e, ok := recvErr.(error); ok {
+// 				err = e
+// 			} else {
+// 				err = fmt.Errorf("%v", recvErr)
+// 			}
+// 		}
+// 	}()
+// 	written, err = io.CopyBuffer(dst, src, *buf)
+// 	return
+// }
+
 func Copy(dst io.Writer, src io.Reader) (written int64, err error) {
 	buf := safeCopyPool.Get().(*[]byte)
 	defer safeCopyPool.Put(buf)
-	defer func() {
-		if recvErr := recover(); recvErr != nil {
-			if e, ok := recvErr.(error); ok {
-				err = e
-			} else {
-				err = fmt.Errorf("%v", recvErr)
+	content := *buf
+	for {
+		nr, er := src.Read(content)
+		if er != nil && er != io.EOF {
+			err = er
+			return
+		}
+		if nr > 0 {
+			nw, ew := dst.Write(content[0:nr])
+			written += int64(nw)
+			if ew != nil {
+				err = ew
+				return
+			}
+			if nr != nw {
+				err = io.ErrShortWrite
+				return
 			}
 		}
-	}()
-	written, err = io.CopyBuffer(dst, src, *buf)
-	return
+		if er != nil {
+			return
+		}
+	}
 }
 
 func CopyWitchContext(ctx context.Context, writer io.Writer, reader io.Reader) (err error) {
@@ -857,7 +885,7 @@ func NewHeadersWithH2(orderHeaders []interface {
 				writeHeaders = append(writeHeaders, [2]string{key, vvs[1]})
 			}
 		}
-		if _, ok := filterKey[key]; (!ok && val != nil) || key == "cookie" {
+		if _, ok := filterKey[key]; (!ok || key == "cookie") && val != nil {
 			filterKey[key] = struct{}{}
 			writeHeaders = append(writeHeaders, [2]string{key, fmt.Sprintf("%v", val)})
 		}
@@ -872,11 +900,14 @@ func NewHeadersWithH2(orderHeaders []interface {
 	})
 	results := [][2]string{}
 	for _, vvs := range writeHeaders {
-		if vvs[0] == "cookie" {
-			for _, cookie := range strings.Split(vvs[1], ";") {
+		switch strings.ToLower(vvs[0]) {
+		case "host", "content-length", "connection", "proxy-connection", "transfer-encoding", "upgrade", "keep-alive":
+		case "cookie":
+			for _, cookie := range strings.Split(vvs[1], "; ") {
 				results = append(results, [2]string{"cookie", cookie})
 			}
-		} else {
+
+		default:
 			results = append(results, vvs)
 		}
 	}
