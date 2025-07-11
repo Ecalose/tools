@@ -6,9 +6,9 @@ require (
 	github.com/gospider007/kinds v0.0.0-20250217075226-10f199f7215d
 	github.com/gospider007/re v0.0.0-20250217075352-bcb79f285d6c
 	github.com/mholt/archives v0.1.3
-	golang.org/x/image v0.28.0
-	golang.org/x/net v0.41.0
-	golang.org/x/text v0.26.0
+	golang.org/x/image v0.29.0
+	golang.org/x/net v0.42.0
+	golang.org/x/text v0.27.0
 )
 
 require (

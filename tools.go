@@ -724,51 +724,51 @@ var safeCopyPool = sync.Pool{
 	},
 }
 
-// func Copy(dst io.Writer, src io.Reader) (written int64, err error) {
-// 	buf := safeCopyPool.Get().(*[]byte)
-// 	defer safeCopyPool.Put(buf)
-// 	defer func() {
-// 		if recvErr := recover(); recvErr != nil {
-// 			if e, ok := recvErr.(error); ok {
-// 				err = e
-// 			} else {
-// 				err = fmt.Errorf("%v", recvErr)
-// 			}
-// 		}
-// 	}()
-// 	written, err = io.CopyBuffer(dst, src, *buf)
-// 	return
-// }
-
 func Copy(dst io.Writer, src io.Reader) (written int64, err error) {
 	buf := safeCopyPool.Get().(*[]byte)
 	defer safeCopyPool.Put(buf)
-	content := *buf
-	for {
-		nr, er := src.Read(content)
-		// log.Print(nr, err)
-		// log.Print(string(content[:nr]))
-		if er != nil && er != io.EOF {
-			err = er
-			return
-		}
-		if nr > 0 {
-			nw, ew := dst.Write(content[0:nr])
-			written += int64(nw)
-			if ew != nil {
-				err = ew
-				return
-			}
-			if nr != nw {
-				err = io.ErrShortWrite
-				return
+	defer func() {
+		if recvErr := recover(); recvErr != nil {
+			if e, ok := recvErr.(error); ok {
+				err = e
+			} else {
+				err = fmt.Errorf("%v", recvErr)
 			}
 		}
-		if er != nil {
-			return
-		}
-	}
+	}()
+	written, err = io.CopyBuffer(dst, src, *buf)
+	return
 }
+
+// func Copy(dst io.Writer, src io.Reader) (written int64, err error) {
+// 	buf := safeCopyPool.Get().(*[]byte)
+// 	defer safeCopyPool.Put(buf)
+// 	content := *buf
+// 	for {
+// 		nr, er := src.Read(content)
+// 		// log.Print(nr, err)
+// 		// log.Print(string(content[:nr]))
+// 		if er != nil && er != io.EOF {
+// 			err = er
+// 			return
+// 		}
+// 		if nr > 0 {
+// 			nw, ew := dst.Write(content[0:nr])
+// 			written += int64(nw)
+// 			if ew != nil {
+// 				err = ew
+// 				return
+// 			}
+// 			if nr != nw {
+// 				err = io.ErrShortWrite
+// 				return
+// 			}
+// 		}
+// 		if er != nil {
+// 			return
+// 		}
+// 	}
+// }
 
 func CopyWitchContext(ctx context.Context, writer io.Writer, reader io.Reader) (err error) {
 	if ctx == nil {
@@ -903,7 +903,7 @@ func NewHeadersWithH2(orderHeaders []interface {
 	results := [][2]string{}
 	for _, vvs := range writeHeaders {
 		switch strings.ToLower(vvs[0]) {
-		case "host", "content-length", "connection", "proxy-connection", "transfer-encoding", "upgrade", "keep-alive":
+		case "host", "connection", "proxy-connection", "transfer-encoding", "upgrade", "keep-alive":
 		case "cookie":
 			for _, cookie := range strings.Split(vvs[1], "; ") {
 				results = append(results, [2]string{"cookie", cookie})
@@ -933,3 +933,5 @@ func GetContentLength(req *http.Request) (int64, bool) {
 	}
 	return contentLength, chunked
 }
+
+var ErrNoErr = errors.New("no error")
