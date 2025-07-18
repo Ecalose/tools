@@ -920,7 +920,7 @@ func GetContentLength(req *http.Request) (int64, bool) {
 	var chunked bool
 	var contentLength int64 = -1
 	if req.Body != nil && req.Body != http.NoBody {
-		if req.ContentLength > 0 {
+		if req.ContentLength >= 0 {
 			contentLength = req.ContentLength
 		} else {
 			chunked = true
