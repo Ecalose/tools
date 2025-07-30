@@ -740,36 +740,6 @@ func Copy(dst io.Writer, src io.Reader) (written int64, err error) {
 	return
 }
 
-// func Copy(dst io.Writer, src io.Reader) (written int64, err error) {
-// 	buf := safeCopyPool.Get().(*[]byte)
-// 	defer safeCopyPool.Put(buf)
-// 	content := *buf
-// 	for {
-// 		nr, er := src.Read(content)
-// 		// log.Print(nr, err)
-// 		// log.Print(string(content[:nr]))
-// 		if er != nil && er != io.EOF {
-// 			err = er
-// 			return
-// 		}
-// 		if nr > 0 {
-// 			nw, ew := dst.Write(content[0:nr])
-// 			written += int64(nw)
-// 			if ew != nil {
-// 				err = ew
-// 				return
-// 			}
-// 			if nr != nw {
-// 				err = io.ErrShortWrite
-// 				return
-// 			}
-// 		}
-// 		if er != nil {
-// 			return
-// 		}
-// 	}
-// }
-
 func CopyWitchContext(ctx context.Context, writer io.Writer, reader io.Reader) (err error) {
 	if ctx == nil {
 		_, err = Copy(writer, reader)
