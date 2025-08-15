@@ -1,6 +1,6 @@
 module github.com/gospider007/tools
 
-go 1.24.0
+go 1.25
 
 require (
 	github.com/gospider007/kinds v0.0.0-20250217075226-10f199f7215d
