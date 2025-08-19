@@ -424,15 +424,6 @@ func (r *NoCloseReader) Close() error {
 	return r.raw.Close()
 }
 
-func CompressionHeadersDecode(ctx context.Context, r io.ReadCloser, encoding string) (io.ReadCloser, error) {
-	switch strings.ToLower(encoding) {
-	case "deflate", "br", "zstd", "gzip":
-		return CompressionDecode(ctx, r, encoding)
-	default:
-		return r, nil
-	}
-}
-
 func CompressionDecode(ctx context.Context, r io.ReadCloser, encoding string) (io.ReadCloser, error) {
 	fileType := ""
 	switch strings.ToLower(encoding) {
@@ -727,15 +718,6 @@ var safeCopyPool = sync.Pool{
 func Copy(dst io.Writer, src io.Reader) (written int64, err error) {
 	buf := safeCopyPool.Get().(*[]byte)
 	defer safeCopyPool.Put(buf)
-	defer func() {
-		if recvErr := recover(); recvErr != nil {
-			if e, ok := recvErr.(error); ok {
-				err = e
-			} else {
-				err = fmt.Errorf("%v", recvErr)
-			}
-		}
-	}()
 	written, err = io.CopyBuffer(dst, src, *buf)
 	return
 }

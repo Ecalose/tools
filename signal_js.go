@@ -7,9 +7,9 @@ import (
 )
 
 func Signal(preCtx context.Context, fun func()) {
-	if fun == nil || preCtx==nil{
+	if fun == nil || preCtx == nil {
 		return
 	}
-	<-preCtx.Done():
+	<-preCtx.Done()
 	fun()
 }
