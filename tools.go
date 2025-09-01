@@ -698,14 +698,24 @@ func DelSliceVal[T comparable](val []T, v T) []T {
 	}
 	return DelSliceIndex(val, index)
 }
-func WrapError(err error, val string) error {
-	if val == "" {
+
+var ErrFatal = errors.New("fatal error")
+
+func WrapError(err error, vals ...any) error {
+	if len(vals) == 0 {
 		return err
 	}
-	if err == nil {
-		return errors.New(val)
+	errs := make([]error, len(vals)+1)
+	errs[0] = err
+	for i, val := range vals {
+		switch v := val.(type) {
+		case error:
+			errs[i+1] = v
+		default:
+			errs[i+1] = errors.New(fmt.Sprint(v))
+		}
 	}
-	return errors.Join(err, errors.New(val))
+	return errors.Join(errs...)
 }
 
 var safeCopyPool = sync.Pool{
