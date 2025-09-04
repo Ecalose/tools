@@ -39,8 +39,6 @@ import (
 
 	_ "image/png"
 
-	_ "embed"
-
 	"github.com/gospider007/kinds"
 	"github.com/gospider007/re"
 	_ "golang.org/x/image/webp"
