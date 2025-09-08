@@ -2,10 +2,6 @@ package tools
 
 import (
 	"bytes"
-	"compress/bzip2"
-	"compress/flate"
-	"compress/gzip"
-	"compress/zlib"
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
@@ -21,8 +17,6 @@ import (
 	"math"
 	"math/rand/v2"
 	"slices"
-
-	"github.com/mholt/archives"
 
 	"net"
 	"net/http"
@@ -420,40 +414,6 @@ func (r *NoCloseReader) Read(p []byte) (n int, err error) {
 }
 func (r *NoCloseReader) Close() error {
 	return r.raw.Close()
-}
-
-func CompressionDecode(ctx context.Context, r io.ReadCloser, encoding string) (io.ReadCloser, error) {
-	fileType := ""
-	switch strings.ToLower(encoding) {
-	case "deflate", "flate":
-		return flate.NewReader(r), nil
-	case "zip":
-		fileType = "zip"
-	case "xz":
-		return archives.Xz{}.OpenReader(r)
-	case "lz4":
-		return archives.Lz4{}.OpenReader(r)
-	case "lzip", "lz":
-		fileType = "lz"
-	case "brotli", "br":
-		return archives.Brotli{}.OpenReader(r)
-	case "zlib", "zz":
-		return zlib.NewReader(r)
-	case "zstandard", "zstd", "zst":
-		return archives.Zstd{}.OpenReader(r)
-	case "snappy2", "s2":
-		return archives.Sz{}.OpenReader(r)
-	case "snappy", "sz":
-		return archives.Sz{}.OpenReader(r)
-	case "gzip":
-		return gzip.NewReader(r)
-	case "gz":
-		return archives.Gz{}.OpenReader(r)
-	case "bzip2", "bz2":
-		return io.NopCloser(bzip2.NewReader(r)), nil
-	}
-	_, stream, err := archives.Identify(ctx, fmt.Sprintf("0.%s", fileType), r)
-	return &NoCloseReader{raw: r, r: stream}, err
 }
 
 // bytes to string

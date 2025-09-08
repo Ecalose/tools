@@ -16,23 +16,10 @@ type CompressionConn struct {
 }
 type Compression interface {
 	String() string
+	Type() byte
 	OpenReader(r io.Reader) (io.ReadCloser, error)
 	OpenWriter(w io.Writer) (io.WriteCloser, error)
-}
-type compression struct {
-	name       string
-	openReader func(r io.Reader) (io.ReadCloser, error)
-	openWriter func(w io.Writer) (io.WriteCloser, error)
-}
-
-func (obj compression) String() string {
-	return obj.name
-}
-func (obj compression) OpenReader(r io.Reader) (io.ReadCloser, error) {
-	return obj.openReader(r)
-}
-func (obj compression) OpenWriter(w io.Writer) (io.WriteCloser, error) {
-	return obj.openWriter(w)
+	ConnCompression() Compression
 }
 
 func GetCompressionByte(decode string) (byte, error) {
@@ -49,46 +36,7 @@ func GetCompressionByte(decode string) (byte, error) {
 		return 0, errors.New("unsupported compression type")
 	}
 }
-func NewCompressionWithByte(b byte) (Compression, error) {
-	c, ok := compressionData[b]
-	if !ok {
-		return nil, errors.New("unsupported compression type")
-	}
-	return compression{
-		name: c.name,
-		openReader: func(r io.Reader) (io.ReadCloser, error) {
-			buf := make([]byte, 1)
-			n, err := r.Read(buf)
-			if err != nil {
-				return nil, err
-			}
-			if n != 1 || buf[0] != b {
-				return nil, errors.New("invalid response")
-			}
-			return c.openReader(r)
-		},
-		openWriter: func(w io.Writer) (io.WriteCloser, error) {
-			n, err := w.Write([]byte{b})
-			if err != nil {
-				return nil, err
-			}
-			if n != 1 {
-				return nil, errors.New("invalid response")
-			}
-			return c.openWriter(w)
-		},
-	}, nil
-}
-func NewCompression(decode string) (Compression, error) {
-	decode = strings.ToLower(decode)
-	for b, c := range compressionData {
-		if c.name == decode {
-			return NewCompressionWithByte(b)
-		}
-	}
-	return nil, errors.New("unsupported compression type")
-}
-func NewRawCompression(encoding string) (Compression, error) {
+func NewCompression(encoding string) (Compression, error) {
 	encoding = strings.ToLower(encoding)
 	switch encoding {
 	case "deflate":
@@ -97,17 +45,28 @@ func NewRawCompression(encoding string) (Compression, error) {
 		encoding = "br"
 	}
 	for _, c := range compressionData {
-		if c.name == encoding {
+		if c.String() == encoding {
 			return c, nil
 		}
 	}
 	return nil, errors.New("unsupported compression type")
 }
+func NewCompressionWithByte(b byte) (Compression, error) {
+	arch, ok := compressionData[b]
+	if !ok {
+		return nil, errors.New("unsupported compression type")
+	}
+	return arch, nil
+}
 
 func NewCompressionConn(conn net.Conn, decode string) (net.Conn, error) {
-	arch, err := NewCompression(decode)
+	ac, err := NewCompression(decode)
 	if err != nil {
-		return conn, err
+		return nil, err
+	}
+	arch := ac.ConnCompression()
+	if arch.String() == "" {
+		return nil, errors.New("no arch")
 	}
 	w, err := arch.OpenWriter(conn)
 	if err != nil {
