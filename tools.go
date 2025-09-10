@@ -761,15 +761,15 @@ var DefaultHeaderKeys = []string{
 	"User-Agent",
 }
 
-func NewHeadersWithH1(orderHeaders []interface {
-	Key() string
-	Val() any
+func NewHeadersWithH1(orderHeaders []struct {
+	Key string
+	Val any
 }, rawHeaders http.Header) [][2]string {
 	writeHeaders := [][2]string{}
 	filterKey := make(map[string]struct{})
 	for _, orderHeader := range orderHeaders {
-		key := orderHeader.Key()
-		val := orderHeader.Val()
+		key := orderHeader.Key
+		val := orderHeader.Val
 		if rawV, ok := rawHeaders[key]; ok && len(rawV) > 0 {
 			filterKey[key] = struct{}{}
 			for _, v := range rawV {
@@ -792,15 +792,15 @@ func NewHeadersWithH1(orderHeaders []interface {
 	})
 	return writeHeaders
 }
-func NewHeadersWithH2(orderHeaders []interface {
-	Key() string
-	Val() any
+func NewHeadersWithH2(orderHeaders []struct {
+	Key string
+	Val any
 }, gospiderHeaders [][2]string) [][2]string {
 	writeHeaders := [][2]string{}
 	filterKey := make(map[string]struct{})
 	for _, orderHeader := range orderHeaders {
-		key := strings.ToLower(orderHeader.Key())
-		val := orderHeader.Val()
+		key := strings.ToLower(orderHeader.Key)
+		val := orderHeader.Val
 		for _, vvs := range gospiderHeaders {
 			if vvs[0] == key {
 				filterKey[key] = struct{}{}
