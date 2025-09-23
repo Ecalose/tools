@@ -603,24 +603,45 @@ func RanFloat64(val, val2 int64) float64 {
 	return float64(RanInt64(val, val2)) + rand.Float64()
 }
 
-// :param point0: start
-// :param point1: end
-// :param control_point: contol
-// :param point_nums: Generate the number of curve coordinate points. The more the number, the more uneven the graph will be, and the less the number, the smoother it will be
-func GetTrack(point0, point1 [2]float64, point_nums float64) [][2]float64 {
-	x1, y1 := point1[0], point1[1]
-	abs_x := math.Abs(point0[0]-x1) / 2 //两点横坐标相减绝对值/2
-	abs_y := math.Abs(point0[1]-y1) / 2 //两点纵坐标相减绝对值/2
-	pointList := [][2]float64{}
-	cx, cy := (point0[0]+x1)/2+RanFloat64(int64(abs_x*-1), int64(abs_x)), (point0[1]+y1)/2+RanFloat64(int64(abs_y*-1), int64(abs_y))
-	var i float64
-	for i = 0; i < point_nums+1; i++ {
-		t := i / point_nums
-		x := math.Pow(1-t, 2)*point0[0] + 2*t*(1-t)*cx + math.Pow(t, 2)*x1
-		y := math.Pow(1-t, 2)*point0[1] + 2*t*(1-t)*cy + math.Pow(t, 2)*y1
-		pointList = append(pointList, [2]float64{x, y})
+// GetTrack 生成从 point0 到 point1 的鼠标轨迹
+// point0, point1: 起点和终点坐标 [x, y]
+// pointNums: 轨迹点数量
+func GetTrack(point0, point1 [2]float64, pointNums int) [][2]float64 {
+
+	// 随机控制点，增加轨迹弯曲度
+	ctrl1 := [2]float64{
+		point0[0] + rand.Float64()*0.3*(point1[0]-point0[0]),
+		point0[1] + rand.Float64()*0.6*(point1[1]-point0[1]) - 0.3*(point1[1]-point0[1]),
 	}
-	return pointList
+	ctrl2 := [2]float64{
+		point0[0] + rand.Float64()*0.3*(point1[0]-point0[0]) + 0.5*(point1[0]-point0[0]),
+		point0[1] + rand.Float64()*0.6*(point1[1]-point0[1]) - 0.3*(point1[1]-point0[1]),
+	}
+
+	track := make([][2]float64, 0, pointNums+1)
+
+	for i := 0; i <= pointNums; i++ {
+		t := float64(i) / float64(pointNums)
+
+		// 三次贝塞尔曲线公式
+		x := math.Pow(1-t, 3)*point0[0] +
+			3*math.Pow(1-t, 2)*t*ctrl1[0] +
+			3*(1-t)*t*t*ctrl2[0] +
+			math.Pow(t, 3)*point1[0]
+
+		y := math.Pow(1-t, 3)*point0[1] +
+			3*math.Pow(1-t, 2)*t*ctrl1[1] +
+			3*(1-t)*t*t*ctrl2[1] +
+			math.Pow(t, 3)*point1[1]
+
+		// 添加少量随机扰动，让轨迹更自然
+		x += rand.Float64()*2 - 1
+		y += rand.Float64()*2 - 1
+
+		track = append(track, [2]float64{x, y})
+	}
+
+	return track
 }
 
 // del slince with indexs
