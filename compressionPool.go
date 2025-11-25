@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"errors"
 	"io"
+	"net"
 	"sync"
 
 	"github.com/andybalholm/brotli"
@@ -36,6 +37,21 @@ func (obj *compression) OpenReader(r io.Reader) (io.ReadCloser, error) {
 }
 func (obj *compression) OpenWriter(w io.Writer) (io.WriteCloser, error) {
 	return obj.openWriter(w)
+}
+func (obj *compression) WrapConn(conn net.Conn) (net.Conn, error) {
+	w, err := obj.OpenWriter(conn)
+	if err != nil {
+		return conn, err
+	}
+	r, err := obj.OpenReader(conn)
+	if err != nil {
+		return conn, err
+	}
+	return &CompressionConn{
+		conn: conn,
+		r:    r,
+		w:    w,
+	}, nil
 }
 func (obj *compression) ConnCompression() Compression {
 	if obj.connCompress {

@@ -20,22 +20,23 @@ type Compression interface {
 	OpenReader(r io.Reader) (io.ReadCloser, error)
 	OpenWriter(w io.Writer) (io.WriteCloser, error)
 	ConnCompression() Compression
+	WrapConn(conn net.Conn) (net.Conn, error)
 }
 
-func GetCompressionByte(decode string) (byte, error) {
-	switch strings.ToLower(decode) {
-	case "zstd":
-		return 40, nil
-	case "s2":
-		return 255, nil
-	case "flate":
-		return 92, nil
-	case "minlz":
-		return 93, nil
-	default:
-		return 0, errors.New("unsupported compression type")
-	}
-}
+//	func GetCompressionByte(decode string) (byte, error) {
+//		switch strings.ToLower(decode) {
+//		case "zstd":
+//			return 40, nil
+//		case "s2":
+//			return 255, nil
+//		case "flate":
+//			return 92, nil
+//		case "minlz":
+//			return 93, nil
+//		default:
+//			return 0, errors.New("unsupported compression type")
+//		}
+//	}
 func NewCompression(encoding string) (Compression, error) {
 	encoding = strings.ToLower(encoding)
 	switch encoding {
@@ -59,30 +60,6 @@ func NewCompressionWithByte(b byte) (Compression, error) {
 	return arch, nil
 }
 
-func NewCompressionConn(conn net.Conn, decode string) (net.Conn, error) {
-	ac, err := NewCompression(decode)
-	if err != nil {
-		return nil, err
-	}
-	arch := ac.ConnCompression()
-	if arch.String() == "" {
-		return nil, errors.New("no arch")
-	}
-	w, err := arch.OpenWriter(conn)
-	if err != nil {
-		return conn, err
-	}
-	r, err := arch.OpenReader(conn)
-	if err != nil {
-		return conn, err
-	}
-	ccon := &CompressionConn{
-		conn: conn,
-		r:    r,
-		w:    w,
-	}
-	return ccon, nil
-}
 func (obj *CompressionConn) Read(b []byte) (n int, err error) {
 	return obj.r.Read(b)
 }

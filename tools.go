@@ -772,33 +772,15 @@ func ArraySet[T comparable](arr []T) []T {
 	return set
 }
 
-var DefaultHeaderKeys = []string{
-	"Accept",
-	"Accept-Encoding",
-	"Accept-Language",
-	"Sec-Ch-Ua",
-	"Sec-Ch-Ua-Mobile",
-	"Sec-Ch-Ua-Platform",
-	"User-Agent",
-}
-
-func NewHeadersWithH1(orderHeaders []struct {
-	Key string
-	Val any
-}, rawHeaders http.Header) [][2]string {
+func NewHeadersWithH1(orderHeaders []string, rawHeaders http.Header) [][2]string {
 	writeHeaders := [][2]string{}
 	filterKey := make(map[string]struct{})
-	for _, orderHeader := range orderHeaders {
-		key := orderHeader.Key
-		val := orderHeader.Val
+	for _, key := range orderHeaders {
 		if rawV, ok := rawHeaders[key]; ok && len(rawV) > 0 {
 			filterKey[key] = struct{}{}
 			for _, v := range rawV {
 				writeHeaders = append(writeHeaders, [2]string{key, v})
 			}
-		} else if val != nil {
-			filterKey[key] = struct{}{}
-			writeHeaders = append(writeHeaders, [2]string{key, fmt.Sprintf("%v", val)})
 		}
 	}
 	for k, vs := range rawHeaders {
@@ -813,24 +795,16 @@ func NewHeadersWithH1(orderHeaders []struct {
 	})
 	return writeHeaders
 }
-func NewHeadersWithH2(orderHeaders []struct {
-	Key string
-	Val any
-}, gospiderHeaders [][2]string) [][2]string {
+func NewHeadersWithH2(orderHeaders []string, gospiderHeaders [][2]string) [][2]string {
 	writeHeaders := [][2]string{}
 	filterKey := make(map[string]struct{})
-	for _, orderHeader := range orderHeaders {
-		key := strings.ToLower(orderHeader.Key)
-		val := orderHeader.Val
+	for _, key := range orderHeaders {
+		key := strings.ToLower(key)
 		for _, vvs := range gospiderHeaders {
 			if vvs[0] == key {
 				filterKey[key] = struct{}{}
 				writeHeaders = append(writeHeaders, [2]string{key, vvs[1]})
 			}
-		}
-		if _, ok := filterKey[key]; (!ok || key == "cookie") && val != nil {
-			filterKey[key] = struct{}{}
-			writeHeaders = append(writeHeaders, [2]string{key, fmt.Sprintf("%v", val)})
 		}
 	}
 	for _, vvs := range gospiderHeaders {
@@ -849,7 +823,6 @@ func NewHeadersWithH2(orderHeaders []struct {
 			for _, cookie := range strings.Split(vvs[1], "; ") {
 				results = append(results, [2]string{"cookie", cookie})
 			}
-
 		default:
 			results = append(results, vvs)
 		}
@@ -876,3 +849,5 @@ func GetContentLength(req *http.Request) (int64, bool) {
 }
 
 var ErrNoErr = errors.New("no error")
+
+const UserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.7499.4 Safari/537.36"
