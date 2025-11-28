@@ -2,6 +2,7 @@ package tools
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"strings"
@@ -19,24 +20,9 @@ type Compression interface {
 	Type() byte
 	OpenReader(r io.Reader) (io.ReadCloser, error)
 	OpenWriter(w io.Writer) (io.WriteCloser, error)
-	ConnCompression() Compression
-	WrapConn(conn net.Conn) (net.Conn, error)
+	ConnCompression(conn net.Conn, connR io.Reader, connW io.Writer) (net.Conn, error) // 前两个字节确定压缩方式
 }
 
-//	func GetCompressionByte(decode string) (byte, error) {
-//		switch strings.ToLower(decode) {
-//		case "zstd":
-//			return 40, nil
-//		case "s2":
-//			return 255, nil
-//		case "flate":
-//			return 92, nil
-//		case "minlz":
-//			return 93, nil
-//		default:
-//			return 0, errors.New("unsupported compression type")
-//		}
-//	}
 func NewCompression(encoding string) (Compression, error) {
 	encoding = strings.ToLower(encoding)
 	switch encoding {
@@ -50,12 +36,12 @@ func NewCompression(encoding string) (Compression, error) {
 			return c, nil
 		}
 	}
-	return nil, errors.New("unsupported compression type")
+	return nil, fmt.Errorf("unsupported compression type with encoding: %s", encoding)
 }
 func NewCompressionWithByte(b byte) (Compression, error) {
 	arch, ok := compressionData[b]
 	if !ok {
-		return nil, errors.New("unsupported compression type")
+		return nil, fmt.Errorf("unsupported compression type with byte: %d", b)
 	}
 	return arch, nil
 }

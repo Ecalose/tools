@@ -15,13 +15,12 @@ import (
 )
 
 type compression struct {
-	rpool        *sync.Pool
-	wpool        *sync.Pool
-	name         string
-	typ          byte
-	connCompress bool
-	openReader   func(r io.Reader) (io.ReadCloser, error)
-	openWriter   func(w io.Writer) (io.WriteCloser, error)
+	rpool      *sync.Pool
+	wpool      *sync.Pool
+	name       string
+	typ        byte
+	openReader func(r io.Reader) (io.ReadCloser, error)
+	openWriter func(w io.Writer) (io.WriteCloser, error)
 }
 
 var compressionData map[byte]*compression
@@ -38,12 +37,33 @@ func (obj *compression) OpenReader(r io.Reader) (io.ReadCloser, error) {
 func (obj *compression) OpenWriter(w io.Writer) (io.WriteCloser, error) {
 	return obj.openWriter(w)
 }
-func (obj *compression) WrapConn(conn net.Conn) (net.Conn, error) {
-	w, err := obj.OpenWriter(conn)
+func (obj *compression) ConnCompression(conn net.Conn, connR io.Reader, connW io.Writer) (net.Conn, error) { // 前两个字节确定压缩方式
+	openReader := func(r io.Reader) (io.ReadCloser, error) {
+		buf := make([]byte, 2)
+		n, err := r.Read(buf)
+		if err != nil {
+			return nil, err
+		}
+		if n != 2 || buf[1] != obj.typ {
+			return nil, errors.New("invalid response")
+		}
+		return obj.openReader(r)
+	}
+	openWriter := func(w io.Writer) (io.WriteCloser, error) {
+		n, err := w.Write([]byte{0xFF, obj.typ})
+		if err != nil {
+			return nil, err
+		}
+		if n != 2 {
+			return nil, errors.New("invalid response")
+		}
+		return obj.openWriter(w)
+	}
+	w, err := openWriter(connW)
 	if err != nil {
 		return conn, err
 	}
-	r, err := obj.OpenReader(conn)
+	r, err := openReader(connR)
 	if err != nil {
 		return conn, err
 	}
@@ -52,39 +72,6 @@ func (obj *compression) WrapConn(conn net.Conn) (net.Conn, error) {
 		r:    r,
 		w:    w,
 	}, nil
-}
-func (obj *compression) ConnCompression() Compression {
-	if obj.connCompress {
-		return obj
-	}
-	return &compression{
-		rpool:        obj.rpool,
-		wpool:        obj.wpool,
-		name:         obj.name,
-		typ:          obj.typ,
-		connCompress: true,
-		openReader: func(r io.Reader) (io.ReadCloser, error) {
-			buf := make([]byte, 2)
-			n, err := r.Read(buf)
-			if err != nil {
-				return nil, err
-			}
-			if n != 2 || buf[1] != obj.typ {
-				return nil, errors.New("invalid response")
-			}
-			return obj.openReader(r)
-		},
-		openWriter: func(w io.Writer) (io.WriteCloser, error) {
-			n, err := w.Write([]byte{0xFF, obj.typ})
-			if err != nil {
-				return nil, err
-			}
-			if n != 2 {
-				return nil, errors.New("invalid response")
-			}
-			return obj.openWriter(w)
-		},
-	}
 }
 
 func init() {
