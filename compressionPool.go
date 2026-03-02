@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"bufio"
 	"compress/flate"
 	"compress/gzip"
 	"errors"
@@ -19,11 +20,11 @@ type compression struct {
 	wpool      *sync.Pool
 	name       string
 	typ        byte
-	openReader func(r io.Reader) (io.ReadCloser, error)
-	openWriter func(w io.Writer) (io.WriteCloser, error)
+	openReader func(typ byte, r io.Reader) (*ReaderCompression, error)
+	openWriter func(typ byte, w io.Writer) (*WriterCompression, error)
 }
 
-var compressionData map[byte]*compression
+var compressionData = map[byte]*compression{}
 
 func (obj *compression) String() string {
 	return obj.name
@@ -31,104 +32,95 @@ func (obj *compression) String() string {
 func (obj *compression) Type() byte {
 	return obj.typ
 }
-func (obj *compression) OpenReader(r io.Reader) (io.ReadCloser, error) {
-	return obj.openReader(r)
+func (obj *compression) OpenReader(r io.Reader) (*ReaderCompression, error) {
+	return obj.openReader(obj.typ, r)
 }
-func (obj *compression) OpenWriter(w io.Writer) (io.WriteCloser, error) {
-	return obj.openWriter(w)
+
+func (obj *compression) OpenWriter(w io.Writer) (*WriterCompression, error) {
+	return obj.openWriter(obj.typ, w)
 }
+
 func (obj *compression) ConnCompression(conn net.Conn, connR io.Reader, connW io.Writer) (net.Conn, error) { // 前两个字节确定压缩方式
-	openReader := func(r io.Reader) (io.ReadCloser, error) {
+	openReader := func(typ byte, r io.Reader) (io.ReadCloser, error) {
 		buf := make([]byte, 2)
 		n, err := r.Read(buf)
 		if err != nil {
 			return nil, err
 		}
-		if n != 2 || buf[1] != obj.typ {
+		if n != 2 || buf[1] != typ {
 			return nil, errors.New("invalid response")
 		}
-		return obj.openReader(r)
+		return obj.openReader(typ, r)
 	}
-	openWriter := func(w io.Writer) (io.WriteCloser, error) {
-		n, err := w.Write([]byte{0xFF, obj.typ})
+	openWriter := func(typ byte, w io.Writer) (*WriterCompression, error) {
+		n, err := w.Write([]byte{0xFF, typ})
 		if err != nil {
 			return nil, err
 		}
 		if n != 2 {
 			return nil, errors.New("invalid response")
 		}
-		return obj.openWriter(w)
+		return obj.openWriter(typ, w)
 	}
-	w, err := openWriter(connW)
+	w, err := openWriter(obj.typ, connW)
 	if err != nil {
 		return conn, err
 	}
-	r, err := openReader(connR)
+	r, err := openReader(obj.typ, connR)
 	if err != nil {
 		return conn, err
 	}
 	return &CompressionConn{
-		conn: conn,
+		Conn: conn,
 		r:    r,
 		w:    w,
 	}, nil
 }
 
-func init() {
-	compressionData = map[byte]*compression{
-		0x01: {
-			name:       "zstd",
-			typ:        0x01,
-			rpool:      &sync.Pool{New: func() any { return nil }},
-			wpool:      &sync.Pool{New: func() any { return nil }},
-			openReader: newZstdReader,
-			openWriter: newZstdWriter,
-		},
-		0x02: {
-			name:       "s2",
-			typ:        0x02,
-			rpool:      &sync.Pool{New: func() any { return nil }},
-			wpool:      &sync.Pool{New: func() any { return nil }},
-			openReader: newSnappyReader,
-			openWriter: newSnappyWriter,
-		},
-		0x03: {
-			name:       "flate",
-			typ:        0x03,
-			rpool:      &sync.Pool{New: func() any { return nil }},
-			wpool:      &sync.Pool{New: func() any { return nil }},
-			openReader: newFlateReader,
-			openWriter: newFlateWriter,
-		},
-		0x04: {
-			name:       "minlz",
-			typ:        0x04,
-			rpool:      &sync.Pool{New: func() any { return nil }},
-			wpool:      &sync.Pool{New: func() any { return nil }},
-			openReader: newMinlzReader,
-			openWriter: newMinlzWriter,
-		},
-		0x05: {
-			name:       "gzip",
-			typ:        0x05,
-			rpool:      &sync.Pool{New: func() any { return nil }},
-			wpool:      &sync.Pool{New: func() any { return nil }},
-			openReader: newGzipReader,
-			openWriter: newGzipWriter,
-		},
-		0x06: {
-			name:       "br",
-			typ:        0x06,
-			rpool:      &sync.Pool{New: func() any { return nil }},
-			wpool:      &sync.Pool{New: func() any { return nil }},
-			openReader: newBrotliReader,
-			openWriter: newBrotliWriter,
-		},
+func setCompression(name string, typ byte, reader func(byte, io.Reader) (*ReaderCompression, error), writer func(byte, io.Writer) (*WriterCompression, error)) {
+	compressionData[typ] = &compression{
+		name:       name,
+		typ:        typ,
+		rpool:      &sync.Pool{New: func() any { return nil }},
+		wpool:      &sync.Pool{New: func() any { return nil }},
+		openReader: reader,
+		openWriter: writer,
 	}
 }
+func init() {
+	setCompression("zstd", 0x01, newZstdReader, newZstdWriter)
+	setCompression("s2", 0x02, newSnappyReader, newSnappyWriter)
+	setCompression("flate", 0x03, newFlateReader, newFlateWriter)
+	setCompression("minlz", 0x04, newMinlzReader, newMinlzWriter)
+	setCompression("gzip", 0x05, newGzipReader, newGzipWriter)
+	setCompression("br", 0x06, newBrotliReader, newBrotliWriter)
+}
 
-func newZstdWriter(w io.Writer) (io.WriteCloser, error) {
-	pool := compressionData[0x01].wpool
+var bufioPool = &sync.Pool{
+	New: func() any { return nil },
+}
+
+func writerCallback(w io.Writer) (io.Writer, func(error)) {
+	if _, ok := w.(interface{ Flush() error }); ok {
+		return w, nil
+	}
+	var z *bufio.Writer
+	cp := bufioPool.Get()
+	if cp == nil {
+		z = bufio.NewWriter(w)
+	} else {
+		z = cp.(*bufio.Writer)
+		z.Reset(w)
+	}
+	return z, func(closeErr error) {
+		CloseWithError(w, closeErr)
+		z.Reset(nil)
+		bufioPool.Put(z)
+	}
+}
+func newZstdWriter(typ byte, w io.Writer) (*WriterCompression, error) {
+	w, wFunc := writerCallback(w)
+	pool := compressionData[typ].wpool
 	cp := pool.Get()
 	var z *zstd.Encoder
 	var err error
@@ -141,13 +133,16 @@ func newZstdWriter(w io.Writer) (io.WriteCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newWriterCompression(z, func() {
+	return newWriterCompression(z, w, func(closeErr error) {
+		if wFunc != nil {
+			wFunc(closeErr)
+		}
 		z.Reset(nil)
 		pool.Put(z)
 	}), nil
 }
-func newZstdReader(w io.Reader) (io.ReadCloser, error) {
-	pool := compressionData[0x01].rpool
+func newZstdReader(typ byte, w io.Reader) (*ReaderCompression, error) {
+	pool := compressionData[typ].rpool
 	cp := pool.Get()
 	var z *zstd.Decoder
 	var err error
@@ -160,7 +155,7 @@ func newZstdReader(w io.Reader) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newReaderCompression(io.NopCloser(z), func() {
+	return newReaderCompression(io.NopCloser(z), w, func(closeErr error) {
 		z.Reset(nil)
 		pool.Put(z)
 	}), nil
@@ -168,8 +163,9 @@ func newZstdReader(w io.Reader) (io.ReadCloser, error) {
 
 // snappy pool
 
-func newSnappyWriter(w io.Writer) (io.WriteCloser, error) {
-	pool := compressionData[0x02].wpool
+func newSnappyWriter(typ byte, w io.Writer) (*WriterCompression, error) {
+	w, wFunc := writerCallback(w)
+	pool := compressionData[typ].wpool
 	cp := pool.Get()
 	var z *snappy.Writer
 	if cp == nil {
@@ -178,13 +174,16 @@ func newSnappyWriter(w io.Writer) (io.WriteCloser, error) {
 		z = cp.(*snappy.Writer)
 		z.Reset(w)
 	}
-	return newWriterCompression(z, func() {
+	return newWriterCompression(z, w, func(closeErr error) {
+		if wFunc != nil {
+			wFunc(closeErr)
+		}
 		z.Reset(nil)
 		pool.Put(z)
 	}), nil
 }
-func newSnappyReader(w io.Reader) (io.ReadCloser, error) {
-	pool := compressionData[0x02].rpool
+func newSnappyReader(typ byte, w io.Reader) (*ReaderCompression, error) {
+	pool := compressionData[typ].rpool
 	cp := pool.Get()
 	var z *snappy.Reader
 	if cp == nil {
@@ -193,15 +192,16 @@ func newSnappyReader(w io.Reader) (io.ReadCloser, error) {
 		z = cp.(*snappy.Reader)
 		z.Reset(w)
 	}
-	return newReaderCompression(io.NopCloser(z), func() {
+	return newReaderCompression(io.NopCloser(z), w, func(closeErr error) {
 		z.Reset(nil)
 		pool.Put(z)
 	}), nil
 }
 
 // flate pool
-func newFlateWriter(w io.Writer) (io.WriteCloser, error) {
-	pool := compressionData[0x03].wpool
+func newFlateWriter(typ byte, w io.Writer) (*WriterCompression, error) {
+	w, wFunc := writerCallback(w)
+	pool := compressionData[typ].wpool
 	cp := pool.Get()
 	var z *flate.Writer
 	var err error
@@ -214,14 +214,17 @@ func newFlateWriter(w io.Writer) (io.WriteCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newWriterCompression(z, func() {
+	return newWriterCompression(z, w, func(closeErr error) {
+		if wFunc != nil {
+			wFunc(closeErr)
+		}
 		z.Reset(nil)
 		pool.Put(z)
 	}), nil
 }
 
-func newFlateReader(w io.Reader) (io.ReadCloser, error) {
-	pool := compressionData[0x03].rpool
+func newFlateReader(typ byte, w io.Reader) (*ReaderCompression, error) {
+	pool := compressionData[typ].rpool
 	cp := pool.Get()
 	var z io.ReadCloser
 	var f flate.Resetter
@@ -233,7 +236,7 @@ func newFlateReader(w io.Reader) (io.ReadCloser, error) {
 		f = z.(flate.Resetter)
 		f.Reset(w, nil)
 	}
-	return newReaderCompression(z, func() {
+	return newReaderCompression(z, w, func(closeErr error) {
 		f.Reset(nil, nil)
 		pool.Put(z)
 	}), nil
@@ -241,8 +244,9 @@ func newFlateReader(w io.Reader) (io.ReadCloser, error) {
 
 // minlz pool
 
-func newMinlzWriter(w io.Writer) (io.WriteCloser, error) {
-	pool := compressionData[0x04].wpool
+func newMinlzWriter(typ byte, w io.Writer) (*WriterCompression, error) {
+	w, wFunc := writerCallback(w)
+	pool := compressionData[typ].wpool
 	cp := pool.Get()
 	var z *minlz.Writer
 	if cp == nil {
@@ -251,14 +255,17 @@ func newMinlzWriter(w io.Writer) (io.WriteCloser, error) {
 		z = cp.(*minlz.Writer)
 		z.Reset(w)
 	}
-	return newWriterCompression(z, func() {
+	return newWriterCompression(z, w, func(closeErr error) {
+		if wFunc != nil {
+			wFunc(closeErr)
+		}
 		z.Reset(nil)
 		pool.Put(z)
 	}), nil
 }
 
-func newMinlzReader(w io.Reader) (io.ReadCloser, error) {
-	pool := compressionData[0x04].rpool
+func newMinlzReader(typ byte, w io.Reader) (*ReaderCompression, error) {
+	pool := compressionData[typ].rpool
 	cp := pool.Get()
 	var z *minlz.Reader
 	if cp == nil {
@@ -267,15 +274,16 @@ func newMinlzReader(w io.Reader) (io.ReadCloser, error) {
 		z = cp.(*minlz.Reader)
 		z.Reset(w)
 	}
-	return newReaderCompression(io.NopCloser(z), func() {
+	return newReaderCompression(io.NopCloser(z), w, func(closeErr error) {
 		z.Reset(nil)
 		pool.Put(z)
 	}), nil
 }
 
 // gzip pool
-func newGzipWriter(w io.Writer) (io.WriteCloser, error) {
-	pool := compressionData[0x05].wpool
+func newGzipWriter(typ byte, w io.Writer) (*WriterCompression, error) {
+	w, wFunc := writerCallback(w)
+	pool := compressionData[typ].wpool
 	cp := pool.Get()
 	var z *gzip.Writer
 	var err error
@@ -288,14 +296,17 @@ func newGzipWriter(w io.Writer) (io.WriteCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newWriterCompression(z, func() {
+	return newWriterCompression(z, w, func(closeErr error) {
+		if wFunc != nil {
+			wFunc(closeErr)
+		}
 		z.Reset(nil)
 		pool.Put(z)
 	}), nil
 }
 
-func newGzipReader(w io.Reader) (io.ReadCloser, error) {
-	pool := compressionData[0x05].rpool
+func newGzipReader(typ byte, w io.Reader) (*ReaderCompression, error) {
+	pool := compressionData[typ].rpool
 	cp := pool.Get()
 	var z *gzip.Reader
 	var err error
@@ -308,14 +319,15 @@ func newGzipReader(w io.Reader) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newReaderCompression(z, func() {
+	return newReaderCompression(z, w, func(closeErr error) {
 		pool.Put(z)
 	}), nil
 }
 
 // brotli pool
-func newBrotliWriter(w io.Writer) (io.WriteCloser, error) {
-	pool := compressionData[0x06].wpool
+func newBrotliWriter(typ byte, w io.Writer) (*WriterCompression, error) {
+	w, wFunc := writerCallback(w)
+	pool := compressionData[typ].wpool
 	cp := pool.Get()
 	var z *brotli.Writer
 	if cp == nil {
@@ -324,14 +336,17 @@ func newBrotliWriter(w io.Writer) (io.WriteCloser, error) {
 		z = cp.(*brotli.Writer)
 		z.Reset(w)
 	}
-	return newWriterCompression(z, func() {
+	return newWriterCompression(z, w, func(closeErr error) {
+		if wFunc != nil {
+			wFunc(closeErr)
+		}
 		z.Reset(nil)
 		pool.Put(z)
 	}), nil
 }
 
-func newBrotliReader(w io.Reader) (io.ReadCloser, error) {
-	pool := compressionData[0x06].rpool
+func newBrotliReader(typ byte, w io.Reader) (*ReaderCompression, error) {
+	pool := compressionData[typ].rpool
 	cp := pool.Get()
 	var z *brotli.Reader
 	if cp == nil {
@@ -340,7 +355,7 @@ func newBrotliReader(w io.Reader) (io.ReadCloser, error) {
 		z = cp.(*brotli.Reader)
 		z.Reset(w)
 	}
-	return newReaderCompression(io.NopCloser(z), func() {
+	return newReaderCompression(io.NopCloser(z), w, func(closeErr error) {
 		z.Reset(nil)
 		pool.Put(z)
 	}), nil
