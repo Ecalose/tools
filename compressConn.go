@@ -69,7 +69,11 @@ type ReaderCompression struct {
 
 func (obj *ReaderCompression) Read(p []byte) (n int, err error) {
 	if n, err = obj.read(p); err != nil {
-		obj.CloseWithError(err)
+		if err == io.EOF {
+			obj.CloseWithError(nil)
+		} else {
+			obj.CloseWithError(err)
+		}
 	}
 	return
 }
