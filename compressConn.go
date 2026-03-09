@@ -61,10 +61,11 @@ func (obj *CompressionConn) Close() error {
 
 type ReaderCompression struct {
 	decoder   io.ReadCloser
-	closed    bool
 	lock      sync.Mutex
 	closeFunc func(error)
 	rawR      io.Reader
+	err       error
+	closed    bool
 }
 
 func (obj *ReaderCompression) Read(p []byte) (n int, err error) {
@@ -80,10 +81,17 @@ func (obj *ReaderCompression) Read(p []byte) (n int, err error) {
 func (obj *ReaderCompression) read(p []byte) (n int, err error) {
 	obj.lock.Lock()
 	defer obj.lock.Unlock()
+	if obj.err != nil {
+		return 0, obj.err
+	}
 	if obj.closed {
 		return 0, errors.New("read closed")
 	}
+
 	n, err = obj.decoder.Read(p)
+	if err != nil {
+		obj.err = err
+	}
 	return
 }
 func (obj *ReaderCompression) Close() error {
@@ -92,6 +100,13 @@ func (obj *ReaderCompression) Close() error {
 func (obj *ReaderCompression) CloseWithError(err error) error {
 	obj.lock.Lock()
 	defer obj.lock.Unlock()
+	if obj.err == nil {
+		if err == nil {
+			obj.err = errors.New("ReaderCompression CloseWithError")
+		} else {
+			obj.err = err
+		}
+	}
 	if obj.closed {
 		return nil
 	}
@@ -104,6 +119,7 @@ func (obj *ReaderCompression) CloseWithError(err error) error {
 type WriterCompression struct {
 	encoder      io.WriteCloser
 	closed       bool
+	err          error
 	lock         sync.Mutex
 	encoderFlush interface{ Flush() error }
 	rawWFlush    interface{ Flush() error }
@@ -120,11 +136,15 @@ func (obj *WriterCompression) Write(p []byte) (n int, err error) {
 func (obj *WriterCompression) write(p []byte) (n int, err error) {
 	obj.lock.Lock()
 	defer obj.lock.Unlock()
+	if obj.err != nil {
+		return 0, obj.err
+	}
 	if obj.closed {
 		return 0, errors.New("write closed")
 	}
 	n, err = obj.encoder.Write(p)
 	if err != nil {
+		obj.err = err
 		return n, err
 	}
 	if obj.encoderFlush != nil {
@@ -158,13 +178,20 @@ func CloseWithError(v any, err error) error {
 func (obj *WriterCompression) CloseWithError(err error) error {
 	obj.lock.Lock()
 	defer obj.lock.Unlock()
+	if obj.err == nil {
+		if err == nil {
+			obj.err = errors.New("WriterCompression CloseWithError")
+		} else {
+			obj.err = err
+		}
+	}
 	if obj.closed {
 		return nil
 	}
+	obj.closed = true
 	if err == io.EOF || err == ErrNoErr {
 		err = nil
 	}
-	obj.closed = true
 	if err2 := obj.encoder.Close(); err2 != nil {
 		err = err2
 	}

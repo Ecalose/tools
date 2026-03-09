@@ -320,8 +320,16 @@ func newGzipReader(typ byte, w io.Reader) (*ReaderCompression, error) {
 		return nil, err
 	}
 	return newReaderCompression(z, w, func(closeErr error) {
+		z.Reset(NoReader{})
 		pool.Put(z)
 	}), nil
+}
+
+type NoReader struct {
+}
+
+func (obj NoReader) Read(p []byte) (n int, err error) {
+	return 0, io.EOF
 }
 
 // brotli pool
