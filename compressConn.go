@@ -100,13 +100,6 @@ func (obj *ReaderCompression) Close() error {
 func (obj *ReaderCompression) CloseWithError(err error) error {
 	obj.lock.Lock()
 	defer obj.lock.Unlock()
-	if obj.err == nil {
-		if err == nil {
-			obj.err = errors.New("ReaderCompression CloseWithError")
-		} else {
-			obj.err = err
-		}
-	}
 	if obj.closed {
 		return nil
 	}
@@ -178,20 +171,10 @@ func CloseWithError(v any, err error) error {
 func (obj *WriterCompression) CloseWithError(err error) error {
 	obj.lock.Lock()
 	defer obj.lock.Unlock()
-	if obj.err == nil {
-		if err == nil {
-			obj.err = errors.New("WriterCompression CloseWithError")
-		} else {
-			obj.err = err
-		}
-	}
 	if obj.closed {
 		return nil
 	}
 	obj.closed = true
-	if err == io.EOF || err == ErrNoErr {
-		err = nil
-	}
 	if err2 := obj.encoder.Close(); err2 != nil {
 		err = err2
 	}
