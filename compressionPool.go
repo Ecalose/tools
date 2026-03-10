@@ -206,7 +206,7 @@ func newFlateWriter(typ byte, w io.Writer) (*WriterCompression, error) {
 	var z *flate.Writer
 	var err error
 	if cp == nil {
-		z, err = flate.NewWriter(w, flate.DefaultCompression)
+		z, err = flate.NewWriter(w, flate.BestCompression)
 	} else {
 		z = cp.(*flate.Writer)
 		z.Reset(w)
@@ -288,7 +288,7 @@ func newGzipWriter(typ byte, w io.Writer) (*WriterCompression, error) {
 	var z *gzip.Writer
 	var err error
 	if cp == nil {
-		z, err = gzip.NewWriterLevel(w, gzip.DefaultCompression)
+		z, err = gzip.NewWriterLevel(w, gzip.BestCompression)
 	} else {
 		z = cp.(*gzip.Writer)
 		z.Reset(w)

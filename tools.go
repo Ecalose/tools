@@ -700,15 +700,14 @@ func WrapError(err error, vals ...any) error {
 
 var safeCopyPool = sync.Pool{
 	New: func() any {
-		b := make([]byte, 32*1024)
-		return &b
+		return make([]byte, 8*1024)
 	},
 }
 
 func Copy(dst io.Writer, src io.Reader) (written int64, err error) {
-	buf := safeCopyPool.Get().(*[]byte)
-	defer safeCopyPool.Put(buf)
-	written, err = io.CopyBuffer(dst, src, *buf)
+	buf := safeCopyPool.Get().([]byte)
+	written, err = io.CopyBuffer(dst, src, buf)
+	safeCopyPool.Put(buf)
 	return
 }
 
@@ -838,16 +837,17 @@ func NewHeadersWithH2(orderHeaders []string, gospiderHeaders [][2]string) [][2]s
 	return results
 }
 
-func GetContentLength(req *http.Request) (int64, bool) {
+func GetContentLength(req *http.Request) (int64, bool) { //没有body contentLength必须为-1
 	var chunked bool
 	var contentLength int64 = -1
-	if req.Body != nil && req.Body != http.NoBody {
-		if req.ContentLength >= 0 {
-			contentLength = req.ContentLength
-		} else {
+	if req.Body != nil {
+		if req.ContentLength == -1 {
 			chunked = true
+		} else if req.ContentLength > 0 {
+			contentLength = req.ContentLength
 		}
-	} else {
+	}
+	if !chunked && contentLength == -1 {
 		switch req.Method {
 		case "POST", "PUT", "PATCH":
 			contentLength = 0
