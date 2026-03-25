@@ -857,3 +857,7 @@ func GetContentLength(req *http.Request) (int64, bool) { //没有body contentLen
 }
 
 const UserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+
+func RandomChoice[T any](v []T) T {
+	return v[RanInt(0, len(v))]
+}
