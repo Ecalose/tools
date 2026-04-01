@@ -698,9 +698,11 @@ func WrapError(err error, vals ...any) error {
 	return errors.Join(errs...)
 }
 
+var MaxReadSize = 8 * 1024
+
 var safeCopyPool = sync.Pool{
 	New: func() any {
-		return make([]byte, 8*1024)
+		return make([]byte, MaxReadSize)
 	},
 }
 
