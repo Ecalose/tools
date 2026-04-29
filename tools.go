@@ -841,7 +841,7 @@ func NewHeadersWithH2(orderHeaders []string, gospiderHeaders [][2]string) [][2]s
 
 func GetContentLength(req *http.Request) (int64, bool) { //没有body contentLength必须为-1
 	var chunked bool
-	var contentLength int64 = -1
+	var contentLength int64 = -1 //不设置 contentLength 时，默认为 -1
 	if req.Body != nil {
 		if req.ContentLength == -1 {
 			chunked = true
