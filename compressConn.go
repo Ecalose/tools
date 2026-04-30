@@ -90,6 +90,9 @@ func (obj *ReaderCompression) read(p []byte) (n int, err error) {
 
 	n, err = obj.decoder.Read(p)
 	if err != nil {
+		if err == io.ErrUnexpectedEOF {
+			err = io.EOF
+		}
 		obj.err = err
 	}
 	return
