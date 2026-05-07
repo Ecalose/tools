@@ -863,3 +863,6 @@ const UserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/5
 func RandomChoice[T any](v []T) T {
 	return v[RanInt(0, len(v))]
 }
+func RandBool() bool {
+	return RandomChoice([]bool{true, false})
+}
