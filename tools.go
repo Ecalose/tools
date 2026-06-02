@@ -65,15 +65,17 @@ func MkDir(path string) error {
 
 // join url patch
 func UrlJoin(base, href string) (string, error) {
+	base = strings.TrimSpace(base)
+	href = strings.TrimSpace(href)
 	baseUrl, err := url.Parse(base)
 	if err != nil {
 		return base, err
 	}
-	refUrl, err := url.Parse(href)
+	resolve, err := baseUrl.Parse(href)
 	if err != nil {
-		return href, err
+		return base, err
 	}
-	return baseUrl.ResolveReference(refUrl).String(), nil
+	return resolve.String(), nil
 }
 
 // html auto decode
