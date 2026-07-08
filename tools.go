@@ -125,7 +125,7 @@ func DecodeRead(txt io.Reader, code string) io.Reader {
 	return txt
 }
 
-// c1 为结构体指针，c2 为结构体，c1无值,c2有值,则c2的值赋值给c1
+// c1 为结构体指针，c2 为结构体，c2有值,则c2的值赋值给c1
 func Merge(c1 any, c2 any) error {
 	c2Value := reflect.ValueOf(c2)        //初始化为c2保管的具体值的c2Value
 	c1Value := reflect.ValueOf(c1).Elem() //返回 c1 指针保管的值
@@ -143,7 +143,7 @@ func Merge(c1 any, c2 any) error {
 		if !field1.CanSet() {
 			return fmt.Errorf("field %s is can not set", c2Name)
 		}
-		if !reflect.DeepEqual(field2.Interface(), reflect.Zero(field2.Type()).Interface()) && reflect.DeepEqual(field1.Interface(), reflect.Zero(field1.Type()).Interface()) { //c1无值,c2有值
+		if !reflect.DeepEqual(field2.Interface(), reflect.Zero(field2.Type()).Interface()) { //c2有值
 			field1.Set(field2) //设置值
 		}
 	}

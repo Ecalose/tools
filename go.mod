@@ -11,5 +11,5 @@ require (
 	github.com/minio/minlz v1.1.1
 	golang.org/x/image v0.43.0
 	golang.org/x/net v0.56.0
-	golang.org/x/text v0.38.0
+	golang.org/x/text v0.39.0
 )
