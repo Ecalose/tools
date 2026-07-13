@@ -606,44 +606,81 @@ func RanFloat64(val, val2 int64) float64 {
 	return float64(RanInt64(val, val2)) + rand.Float64()
 }
 
-// GetTrack 生成从 point0 到 point1 的鼠标轨迹
-// point0, point1: 起点和终点坐标 [x, y]
-// pointNums: 轨迹点数量
+// GetTrack 生成从 point0 到 point1 的平滑鼠标轨迹。
+// point0、point1 为起点和终点坐标，pointNums 为轨迹分段数；返回 pointNums+1 个点。
 func GetTrack(point0, point1 [2]float64, pointNums int) [][2]float64 {
+	if pointNums <= 0 {
+		return [][2]float64{point0}
+	}
 
-	// 随机控制点，增加轨迹弯曲度
+	dx := point1[0] - point0[0]
+	dy := point1[1] - point0[1]
+	distance := math.Hypot(dx, dy)
+	if distance == 0 {
+		track := make([][2]float64, pointNums+1)
+		for i := range track {
+			track[i] = point0
+		}
+		return track
+	}
+	// 用运动方向的法向量制造弧度：纯水平/纯垂直移动也会自然弯曲。
+	normalX := -dy / distance
+	normalY := dx / distance
+	bias1 := (rand.Float64()*0.6 - 0.3) * distance
+	bias2 := (rand.Float64()*0.6 - 0.3) * distance
 	ctrl1 := [2]float64{
-		point0[0] + rand.Float64()*0.3*(point1[0]-point0[0]),
-		point0[1] + rand.Float64()*0.6*(point1[1]-point0[1]) - 0.3*(point1[1]-point0[1]),
+		point0[0] + dx*0.25 + normalX*bias1,
+		point0[1] + dy*0.25 + normalY*bias1,
 	}
 	ctrl2 := [2]float64{
-		point0[0] + rand.Float64()*0.3*(point1[0]-point0[0]) + 0.5*(point1[0]-point0[0]),
-		point0[1] + rand.Float64()*0.6*(point1[1]-point0[1]) - 0.3*(point1[1]-point0[1]),
+		point0[0] + dx*0.75 + normalX*bias2,
+		point0[1] + dy*0.75 + normalY*bias2,
 	}
 
+	// 抖动幅度随距离自适应，限制上限避免长距离时出现夸张毛刺。
+	wobble := math.Min(2.5, math.Max(0.6, distance*0.02))
+
 	track := make([][2]float64, 0, pointNums+1)
+	var noiseX, noiseY float64
 
 	for i := 0; i <= pointNums; i++ {
-		t := float64(i) / float64(pointNums)
+		ratio := float64(i) / float64(pointNums)
 
-		// 三次贝塞尔曲线公式
-		x := math.Pow(1-t, 3)*point0[0] +
-			3*math.Pow(1-t, 2)*t*ctrl1[0] +
-			3*(1-t)*t*t*ctrl2[0] +
-			math.Pow(t, 3)*point1[0]
+		// ease-in-out cubic：起点终点速度更慢，更接近人类手腕动作。
+		t := ratio
+		if t < 0.5 {
+			t = 4 * t * t * t
+		} else {
+			t = 1 - math.Pow(-2*ratio+2, 3)/2
+		}
+		u := 1 - t
+		u2 := u * u
+		t2 := t * t
 
-		y := math.Pow(1-t, 3)*point0[1] +
-			3*math.Pow(1-t, 2)*t*ctrl1[1] +
-			3*(1-t)*t*t*ctrl2[1] +
-			math.Pow(t, 3)*point1[1]
+		x := u2*u*point0[0] +
+			3*u2*t*ctrl1[0] +
+			3*u*t2*ctrl2[0] +
+			t2*t*point1[0]
+		y := u2*u*point0[1] +
+			3*u2*t*ctrl1[1] +
+			3*u*t2*ctrl2[1] +
+			t2*t*point1[1]
 
-		// 添加少量随机扰动，让轨迹更自然
-		x += rand.Float64()*2 - 1
-		y += rand.Float64()*2 - 1
+		if i != 0 && i != pointNums {
+			// sin(πt) 包络在中段最大、端点归零；一阶低通让相邻点更连续。
+			envelope := math.Sin(math.Pi*ratio) * wobble
+			noiseX = noiseX*0.7 + (rand.Float64()*2-1)*0.3
+			noiseY = noiseY*0.7 + (rand.Float64()*2-1)*0.3
+			x += noiseX * envelope
+			y += noiseY * envelope
+		}
 
 		track = append(track, [2]float64{x, y})
 	}
 
+	// 强制首尾等于入参坐标，避免浮点或抖动导致偏差。
+	track[0] = point0
+	track[len(track)-1] = point1
 	return track
 }
 
