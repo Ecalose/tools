@@ -152,7 +152,7 @@ func writerCallback(w io.Writer) (io.Writer, func(error)) {
 	}
 	return z, func(closeErr error) {
 		CloseWithError(w, closeErr)
-		z.Reset(nil)
+		z.Reset(NoWriter{})
 		bufioPool.Put(z)
 	}
 }
@@ -175,7 +175,7 @@ func newZstdWriter(typ byte, w io.Writer) (*WriterCompression, error) {
 		if wFunc != nil {
 			wFunc(closeErr)
 		}
-		z.Reset(nil)
+		z.Reset(NoWriter{})
 		pool.Put(z)
 	}), nil
 }
@@ -216,7 +216,7 @@ func newSnappyWriter(typ byte, w io.Writer) (*WriterCompression, error) {
 		if wFunc != nil {
 			wFunc(closeErr)
 		}
-		z.Reset(nil)
+		z.Reset(NoWriter{})
 		pool.Put(z)
 	}), nil
 }
@@ -256,7 +256,7 @@ func newFlateWriter(typ byte, w io.Writer) (*WriterCompression, error) {
 		if wFunc != nil {
 			wFunc(closeErr)
 		}
-		z.Reset(nil)
+		z.Reset(NoWriter{})
 		pool.Put(z)
 	}), nil
 }
@@ -297,7 +297,7 @@ func newMinlzWriter(typ byte, w io.Writer) (*WriterCompression, error) {
 		if wFunc != nil {
 			wFunc(closeErr)
 		}
-		z.Reset(nil)
+		z.Reset(NoWriter{})
 		pool.Put(z)
 	}), nil
 }
@@ -338,7 +338,7 @@ func newGzipWriter(typ byte, w io.Writer) (*WriterCompression, error) {
 		if wFunc != nil {
 			wFunc(closeErr)
 		}
-		z.Reset(nil)
+		z.Reset(NoWriter{})
 		pool.Put(z)
 	}), nil
 }
@@ -370,6 +370,13 @@ func (obj NoReader) Read(p []byte) (n int, err error) {
 	return 0, io.EOF
 }
 
+type NoWriter struct {
+}
+
+func (obj NoWriter) Write(p []byte) (int, error) {
+	return 0, net.ErrClosed
+}
+
 // brotli pool
 func newBrotliWriter(typ byte, w io.Writer) (*WriterCompression, error) {
 	w, wFunc := writerCallback(w)
@@ -386,7 +393,7 @@ func newBrotliWriter(typ byte, w io.Writer) (*WriterCompression, error) {
 		if wFunc != nil {
 			wFunc(closeErr)
 		}
-		z.Reset(nil)
+		z.Reset(NoWriter{})
 		pool.Put(z)
 	}), nil
 }
