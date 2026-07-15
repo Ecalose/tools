@@ -15,47 +15,9 @@ import (
 	"github.com/minio/minlz"
 )
 
-type pool struct {
-	data chan any
-}
-
-func (obj *pool) Get() any {
-	select {
-	case v := <-obj.data:
-		return v
-	default:
-		return nil
-	}
-}
-func (obj *pool) Put(v any) {
-	go func() {
-		select {
-		case obj.data <- v:
-		default:
-			if closer, ok := v.(interface {
-				Close() error
-			}); ok {
-				closer.Close()
-				return
-			}
-			if closer, ok := v.(interface {
-				Close()
-			}); ok {
-				closer.Close()
-				return
-			}
-		}
-	}()
-}
-func newPool() *pool {
-	return &pool{
-		data: make(chan any, 100),
-	}
-}
-
 type compression struct {
-	rpool      *pool
-	wpool      *pool
+	rpool      *sync.Pool
+	wpool      *sync.Pool
 	name       string
 	typ        byte
 	openReader func(typ byte, r io.Reader) (*ReaderCompression, error)
@@ -119,8 +81,8 @@ func setCompression(name string, typ byte, reader func(byte, io.Reader) (*Reader
 	compressionData[typ] = &compression{
 		name:       name,
 		typ:        typ,
-		rpool:      newPool(),
-		wpool:      newPool(),
+		rpool:      &sync.Pool{New: func() any { return nil }},
+		wpool:      &sync.Pool{New: func() any { return nil }},
 		openReader: reader,
 		openWriter: writer,
 	}
