@@ -5,8 +5,8 @@ go 1.27.0
 require (
 	github.com/andybalholm/brotli v1.2.2
 	github.com/golang/snappy v1.0.0
-	github.com/gospider007/kinds v0.0.0-20260211060834-06a10e2431d8
-	github.com/gospider007/re v0.0.0-20260227072205-6223d82a3dab
+	github.com/gospider007/kinds v0.0.0-20260824054539-a612e386b5ac
+	github.com/gospider007/re v0.0.0-20260824054539-32823144d328
 	github.com/klauspost/compress v1.19.2
 	github.com/minio/minlz v1.2.0
 	golang.org/x/image v0.45.0
