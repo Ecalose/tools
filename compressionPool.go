@@ -125,7 +125,7 @@ func newZstdWriter(typ byte, w io.Writer) (*WriterCompression, error) {
 	var z *zstd.Encoder
 	var err error
 	if cp == nil {
-		z, err = zstd.NewWriter(w, zstd.WithWindowSize(32*1024))
+		z, err = zstd.NewWriter(w)
 	} else {
 		z = cp.(*zstd.Encoder)
 		z.Reset(w)
@@ -206,7 +206,7 @@ func newFlateWriter(typ byte, w io.Writer) (*WriterCompression, error) {
 	var z *flate.Writer
 	var err error
 	if cp == nil {
-		z, err = flate.NewWriter(w, flate.BestCompression)
+		z, err = flate.NewWriter(w, flate.DefaultCompression)
 	} else {
 		z = cp.(*flate.Writer)
 		z.Reset(w)
@@ -250,7 +250,7 @@ func newMinlzWriter(typ byte, w io.Writer) (*WriterCompression, error) {
 	cp := pool.Get()
 	var z *minlz.Writer
 	if cp == nil {
-		z = minlz.NewWriter(w, minlz.WriterBlockSize(32*1024))
+		z = minlz.NewWriter(w)
 	} else {
 		z = cp.(*minlz.Writer)
 		z.Reset(w)
@@ -269,7 +269,7 @@ func newMinlzReader(typ byte, w io.Reader) (*ReaderCompression, error) {
 	cp := pool.Get()
 	var z *minlz.Reader
 	if cp == nil {
-		z = minlz.NewReader(w, minlz.ReaderMaxBlockSize(32*1024))
+		z = minlz.NewReader(w)
 	} else {
 		z = cp.(*minlz.Reader)
 		z.Reset(w)
@@ -288,7 +288,7 @@ func newGzipWriter(typ byte, w io.Writer) (*WriterCompression, error) {
 	var z *gzip.Writer
 	var err error
 	if cp == nil {
-		z, err = gzip.NewWriterLevel(w, gzip.BestCompression)
+		z, err = gzip.NewWriterLevel(w, gzip.DefaultCompression)
 	} else {
 		z = cp.(*gzip.Writer)
 		z.Reset(w)
