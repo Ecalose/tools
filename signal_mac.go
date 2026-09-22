@@ -16,7 +16,7 @@ func Signal(preCtx context.Context, fun func()) {
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch,
 		syscall.SIGHUP, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGILL, syscall.SIGTRAP,
-		syscall.SIGABRT, syscall.SIGBUS, syscall.SIGFPE, syscall.SIGSEGV, syscall.SIGPIPE,
+		syscall.SIGABRT, syscall.SIGBUS, syscall.SIGFPE, syscall.SIGSEGV,
 		syscall.SIGALRM, syscall.SIGTERM)
 	select {
 	case <-preCtx.Done():
